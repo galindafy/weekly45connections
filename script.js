@@ -3,10 +3,53 @@ document.addEventListener("DOMContentLoaded", () => {
   const SIZE = 45;
   const STORAGE_KEY = "connections-polished-45x45-v1";
   const GROUP_COLORS = ["#f9df6d","#a0c35a","#b0c4ef","#ba81c5"];
-  const BASE_POOLS = {"FRUITS": ["apple", "banana", "orange", "grape", "pear", "peach", "plum", "mango", "kiwi", "papaya", "pineapple", "strawberry", "raspberry", "blueberry", "blackberry", "melon", "watermelon", "coconut", "lemon", "lime", "apricot", "fig", "guava", "lychee", "nectarine", "passionfruit", "pomegranate", "dragon fruit", "persimmon", "tangerine", "cranberry", "date", "grapefruit", "mulberry", "olive fruit", "quince", "starfruit", "currant", "boysenberry", "blood orange", "cantaloupe", "honeydew", "gooseberry", "jackfruit", "kumquat"], "COLOURS": ["red", "blue", "green", "yellow", "purple", "pink", "black", "white", "orange colour", "brown", "teal", "navy", "gold colour", "silver colour", "cyan", "magenta", "beige", "maroon", "olive", "indigo", "charcoal", "ivory", "lavender", "turquoise", "mustard", "burgundy", "peach colour", "mint", "tan", "cream", "scarlet", "crimson", "amber", "bronze hue", "plum colour", "lilac", "periwinkle", "sage", "coral", "taupe", "ochre", "russet", "khaki", "fuchsia", "aqua"], "CITIES": ["Paris", "Rome", "Tokyo", "London", "Berlin", "Madrid", "Vienna", "Prague", "Dublin", "Lisbon", "Oslo", "Athens", "Warsaw", "Zurich", "Helsinki", "Budapest", "Seoul", "Bangkok", "Delhi", "Cairo", "Montreal", "Toronto", "Vancouver", "Ottawa", "Chicago", "Boston", "Miami", "Seattle", "Sydney", "Melbourne", "Auckland", "Brussels", "Munich", "Hamburg", "Florence", "Naples", "Kyoto", "Busan", "Lima", "Santiago", "Bogota", "Reykjavik", "Doha", "Dubai", "Marrakesh"], "SINGERS": ["Taylor Swift", "Ariana Grande", "Cher", "Miley Cyrus", "Olivia Rodrigo", "Sabrina Carpenter", "Drake", "Billie Eilish", "Elvis Presley", "Aretha Franklin", "Dua Lipa", "Adele", "Rihanna", "Beyonce", "Bruno Mars", "Shania Twain", "Celine Dion", "Katy Perry", "Justin Bieber", "The Weeknd", "Harry Styles", "Sheryl Crow", "Mariah Carey", "Whitney Houston", "Britney Spears", "Christina Aguilera", "Lorde", "Sia", "Hozier", "Ed Sheeran", "Sam Smith", "Shawn Mendes", "Kelly Clarkson", "Pink", "Tina Turner", "Dolly Parton", "Carly Rae Jepsen", "Nelly Furtado", "Janet Jackson", "Alicia Keys", "Usher", "Janelle Monae", "Lana Del Rey", "Kesha", "Megan Thee Stallion"], "ACTORS": ["Zendaya", "Tom Holland", "Scarlett Johansson", "Anne Hathaway", "Margot Robbie", "Robert De Niro", "Johnny Depp", "Meryl Streep", "Leonardo DiCaprio", "Chris Evans", "Emma Stone", "Ryan Gosling", "Julia Roberts", "Denzel Washington", "Sandra Bullock", "Brad Pitt", "Natalie Portman", "Cillian Murphy", "Paul Rudd", "Keanu Reeves", "Viola Davis", "Jennifer Lawrence", "Matt Damon", "George Clooney", "Nicole Kidman", "Cate Blanchett", "Pedro Pascal", "Ayo Edebiri", "Dev Patel", "Daniel Kaluuya", "Florence Pugh", "Kerry Washington", "Angela Bassett", "Jeff Goldblum", "Winona Ryder", "Sigourney Weaver", "Oscar Isaac", "Adam Driver", "Rachel McAdams", "Ethan Hawke", "Jodie Foster", "Amy Adams", "Jenna Ortega", "Millie Bobby Brown", "Saoirse Ronan"], "CLOTHING BRANDS": ["Nike", "Adidas", "Levi's", "Zara", "Garage", "Hollister", "Aeropostale", "UNIQLO", "Lululemon", "Aritzia", "Old Navy", "Gap", "Puma", "Reebok", "Converse", "H and M", "Mango", "Diesel", "Guess", "Roots", "Champion", "Patagonia", "North Face", "Columbia", "New Balance", "Asics", "Abercrombie", "Free People", "Banana Republic", "Tommy Hilfiger", "Calvin Klein", "Under Armour", "Burberry", "Coach", "Prada", "Gucci", "Versace", "Balenciaga", "Everlane", "American Eagle", "Ralph Lauren", "Dickies", "Carhartt", "Dr. Martens", "Birkenstock"], "ANIMALS": ["lion", "tiger", "bear", "wolf", "fox", "dog", "cat", "zebra", "panda", "horse", "eagle", "shark", "whale", "snake", "frog", "deer", "otter", "camel", "goat", "sheep", "rabbit", "owl", "falcon", "moose", "bison", "beaver", "lynx", "cougar", "koala", "lemur", "rhino", "hippo", "gecko", "iguana", "salmon", "trout", "crab", "lobster", "octopus", "squid", "penguin", "seal", "dolphin", "orca", "buffalo"], "DESSERTS": ["cake", "pie", "cookie", "brownie", "muffin", "donut", "croissant pastry", "tart", "pudding", "ice cream", "sundae", "sorbet", "cheesecake", "macaron", "eclair", "cannoli", "fudge", "truffle", "cupcake", "parfait", "creme brulee", "churro", "baklava", "gelato", "pavlova", "shortbread", "bread pudding", "rice pudding", "flan", "tiramisu", "meringue", "whoopie pie", "lemon bar", "snickerdoodle", "biscotti", "marshmallow square", "cobbler", "blondie", "mooncake", "madeleine", "profiterole", "souffle", "strudel", "danish", "beignet"], "BREAKFAST FOODS": ["toast", "bagel", "pancakes", "waffles", "omelette", "bacon", "sausage", "cereal", "granola", "yogurt", "hash browns", "oatmeal", "breakfast muffin", "buttery croissant", "fruit cup", "smoothie", "fried eggs", "home fries", "jam", "butter", "poached eggs", "scrambled eggs", "english muffin", "avocado toast", "breakfast burrito", "breakfast sandwich", "crepes", "porridge", "grits", "quiche slice", "bran flakes", "chia pudding", "banana bread", "apple sauce cup", "sauteed mushrooms", "breakfast sausage patty", "frittata", "hash", "breakfast wrap", "toast soldiers", "hard boiled eggs", "breakfast potatoes", "rye toast", "cream cheese", "smoked salmon"], "PHONE APPS": ["Instagram", "TikTok", "YouTube app", "Spotify", "Uber", "Google Maps", "Notes app", "Calendar app", "Photos app", "Camera app", "Gmail app", "WhatsApp", "Messenger app", "Zoom", "Netflix", "Weather app", "Clock app", "Reminders", "Discord", "Pinterest", "Threads", "Snapchat", "Telegram", "Signal", "Apple Music", "Google Drive", "Dropbox", "Canva", "Duolingo", "Strava", "Slack", "Reddit", "Amazon app", "Etsy", "Airbnb", "Booking", "Transit app", "Waze", "Shazam", "CapCut", "Pocket Casts", "Notion", "Todoist", "LinkedIn", "X app"], "THINGS AT THE BEACH": ["sunscreen", "beach towel", "beach umbrella", "sandals", "bucket", "shovel", "cooler", "flip flops", "sunglasses", "swimsuit", "lawn chair", "picnic blanket", "beach ball", "seashell", "surfboard", "floatie", "snorkel", "paddle", "sandcastle", "beach bag", "sun hat", "water bottle", "volleyball", "kite", "boogie board", "beach mat", "cover up", "goggles", "beach read", "portable speaker", "after-sun lotion", "pool noodle", "sand toys", "mesh tote", "wet wipes", "dry bag", "swim trunks", "rash guard", "shell necklace", "sun visor", "beach cart", "umbrella anchor", "camp chair", "beach radio", "cooler pack"]};
-  const PREFIX_NAMES = ["apple", "break", "star", "light", "home", "power", "night", "water", "moon", "sun", "blue", "gold", "heart", "fire", "love", "game", "hand", "head", "work", "book", "silver", "dream", "sky", "road", "time", "day", "snow", "rain", "wind", "sea", "tree", "bird", "stone", "river", "field"];
-  const SUFFIXES = ["light", "fish", "dust", "power", "sign", "player", "chart", "burst", "trail", "field", "shape", "gazer", "map", "fruit", "board", "maker", "turn", "ship", "watch", "line", "fall", "child", "point", "shine", "path", "spark", "case", "gate", "stream", "stone", "print", "song", "room", "frame", "route", "talk", "side", "box", "value", "mark", "cast", "city", "phase", "drive", "bloom"];
-  const board = document.getElementById("board");
+const CATEGORY_BANK = {
+  "FRUITS": [...],
+  "COLOURS": [...],
+  "CITIES": [...],
+  "SINGERS": [...],
+  "ACTORS": [...],
+  "CLOTHING BRANDS": [...],
+  "ANIMALS": [...],
+  "DESSERTS": [...],
+  "BREAKFAST FOODS": [...],
+  "PHONE APPS": [...],
+  "THINGS AT THE BEACH": [...],
+  "COMMON PASSWORD WORDS": [...],
+  "BOOKS": [...],
+  "COUNTRIES": [...],
+  "SPORTS": [...],
+  "FLOWERS": [...],
+  "BEVERAGES": [...],
+  "THINGS IN A HOME": [...],
+  "JOBS": [...],
+  "MOVIE TITLES": [...],
+  "SONG TITLES": [...],
+  "FOODS": [...],
+  "VEGETABLES": [...],
+  "TOOLS": [...],
+  "FURNITURE": [...],
+  "VEHICLES": [...],
+  "MUSICAL INSTRUMENTS": [...],
+  "BOARD GAMES": [...],
+  "CARD GAMES": [...],
+  "SOCIAL MEDIA PLATFORMS": [...],
+  "STREAMING SERVICES": [...],
+  "FAST FOOD CHAINS": [...],
+  "COFFEE DRINKS": [...],
+  "ALCOHOL TYPES": [...],
+  "CHEESES": [...],
+  "PASTA TYPES": [...],
+  "BREAD TYPES": [...],
+  "CANDY": [...],
+  "ICE CREAM FLAVOURS": [...],
+  "MAKEUP PRODUCTS": [...],
+  "SKINCARE": [...],
+  "HAIR PRODUCTS": [...],
+  "EXERCISES": [...],
+  "SPORTS TEAMS": [...],
+  "AIRLINES": [...],
+};  const board = document.getElementById("board");
   const mistakesEl = document.getElementById("mistakes");
   const dateEl = document.getElementById("puzzleDate");
   const shuffleBtn = document.getElementById("shuffleBtn");
@@ -37,32 +80,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const uniq = [...new Set(arr)];
     return shuffle(uniq, seed).slice(0, 45);
   }
-  function createDailyCategories(key) {
-    const seed = seedNumber(key);
-    const categories = [];
-    let idx = 0;
-    Object.entries(BASE_POOLS).forEach(([name, arr]) => {
-      categories.push({ name, words: pick45(arr, seed + idx * 101) });
-      idx += 1;
-    });
-    PREFIX_NAMES.forEach(root => {
-      categories.push({
-        name: `WORDS WITH ${root.toUpperCase()}`,
-        words: pick45(SUFFIXES, seed + idx * 101).map(s => `${root} ${s}`)
-      });
-      idx += 1;
-    });
-    const seen = new Set();
-    categories.forEach(cat => {
-      cat.words = cat.words.map(word => {
-        if (!seen.has(word)) { seen.add(word); return word; }
-        const marked = `${word} [${cat.name.toLowerCase().split(" ").slice(0,2).join(" ")}]`;
-        seen.add(marked);
-        return marked;
-      });
-    });
-    return categories.slice(0, 45);
-  }
+function createDailyCategories(key) {
+  const seed = seedNumber(key);
+
+  const entries = Object.entries(CATEGORY_BANK);
+
+  // pick 45 categories
+  const chosen = shuffle(entries, seed).slice(0, 45);
+
+  return chosen.map(([name, words], i) => ({
+    name,
+    words: shuffle(words, seed + i * 100).slice(0, 45)
+  }));
+}
   function buildFreshState() {
     const dateKey = seedForToday();
     const cats = createDailyCategories(dateKey);
