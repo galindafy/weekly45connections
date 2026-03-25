@@ -68,18 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return normalizeSourceWord(word);
   }
 
-  function buildGeneratedBanks() {
-    const banks = {};
-    GENERATED_ROOTS.forEach((root, rootIndex) => {
-      const values = GENERATED_TAILS.map((tail, tailIndex) => {
-        if (tailIndex < 8 && rootIndex % 4 === 0) return `${root}${tail}`;
-        return `${root} ${tail}`;
-      });
-      banks[`WORDS WITH ${root.toUpperCase()}`] = values.slice(0, SIZE);
-    });
-    return banks;
-  }
-
   function buildCategoryPool() {
   return {
     ...DIRECT_BANKS,
