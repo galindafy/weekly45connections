@@ -81,11 +81,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCategoryPool() {
-    return {
-      ...DIRECT_BANKS,
-      ...buildGeneratedBanks()
-    };
-  }
+  return {
+    ...DIRECT_BANKS,
+    ...PHRASE_BANKS
+  };
+}
 
   function weekStartDate() {
     const d = new Date();
