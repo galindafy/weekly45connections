@@ -10,12 +10,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const deselectBtn = document.getElementById("deselectBtn");
 
   function displayWord(word) {
-    return word
-      .replace(/\s+(film|song|novel|app|platform|service|company|book|game|drink|beverage|instrument|flower|tree|fish|seafood|vehicle|state|bird|colour|fish|seafood)$/i, "")
-      .replace(/\s+\[.*?\]$/, "")
-      .replace(/\s+(furniture|planner|lotion)$/i, "")
-      .trim();
-  }
+  return word
+    .replace(/\s+\[.*?\]$/, "")
+    .replace(/\s+(film|song|novel|app|platform|service|company|book|game|drink|beverage|instrument|flower|tree|fish|seafood|vehicle|state|bird|colour|furniture|planner|lotion)$/i, "")
+    .trim();
+}
   function weekStartDate() {
     const d = new Date();
     const local = new Date(d.getFullYear(), d.getMonth(), d.getDate());
