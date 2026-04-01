@@ -135,6 +135,7 @@
 
   const puzzle = buildPuzzle(seedInfo.key, config.categoryCount);
   let state = loadState();
+  let shakingIds = [];
   if (!state || !Array.isArray(state.units)) state = createFreshState();
   normaliseState();
   render();
@@ -322,6 +323,16 @@
     });
   }
 
+
+  function shakeSelected() {
+    shakingIds = [...state.selected];
+    renderBoard();
+    window.setTimeout(() => {
+      shakingIds = [];
+      renderBoard();
+    }, 360);
+  }
+
   function getVisibleUnits() {
     return state.units.filter(unit => !state.solvedIds.includes(unit.categoryId));
   }
@@ -401,6 +412,7 @@
     } else {
       state.mistakes += 1;
       setStatus('Not a match.');
+      shakeSelected();
       if (state.mistakes >= 4) {
         state.locked = true;
         state.revealedOnLoss = true;
