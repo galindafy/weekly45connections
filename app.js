@@ -128,20 +128,20 @@
   const strikesEl = document.getElementById('strikes');
   const shuffleBtn = document.getElementById('shuffleBtn');
   const deselectBtn = document.getElementById('deselectBtn');
-  const submitBtn = document.getElementById('submitBtn');
 
   const seedInfo = getSeedInfo(config.puzzleType);
-  const storageKey = `${config.storagePrefix}:${seedInfo.key}`;
+  const storageKey = `${config.storagePrefix}:v3:${seedInfo.key}`;
   seedLabelEl.textContent = seedInfo.label;
 
-  let puzzle = buildPuzzle(seedInfo.key, config.categoryCount);
-  let state = loadState() || createFreshState();
+  const puzzle = buildPuzzle(seedInfo.key, config.categoryCount);
+  let state = loadState();
+  if (!state || !Array.isArray(state.units)) state = createFreshState();
   normaliseState();
   render();
 
   shuffleBtn.addEventListener('click', () => {
     if (state.locked) return;
-    state.tileOrder = shuffleUnsolved(state.tileOrder);
+    shuffleUnits();
     saveState();
     renderBoard();
   });
@@ -150,10 +150,7 @@
     state.selected = [];
     saveState();
     renderBoard();
-    renderButtons();
   });
-
-  submitBtn.addEventListener('click', submitSelection);
 
   function createFreshState() {
     return {
@@ -162,18 +159,43 @@
       mistakes: 0,
       locked: false,
       won: false,
-      tileOrder: puzzle.tiles.map(tile => tile.id),
-      revealedOnLoss: false
+      revealedOnLoss: false,
+      statusMessage: '',
+      units: puzzle.tiles.map(tile => ({
+        id: `u-${tile.id}`,
+        categoryId: tile.categoryId,
+        tileIds: [tile.id]
+      }))
     };
   }
 
   function normaliseState() {
     const validTileIds = new Set(puzzle.tiles.map(tile => tile.id));
-    state.selected = (state.selected || []).filter(id => validTileIds.has(id));
-    state.solvedIds = (state.solvedIds || []).filter(id => puzzle.categories.some(cat => cat.id === id));
-    if (!Array.isArray(state.tileOrder) || state.tileOrder.length !== puzzle.tiles.length) {
-      state.tileOrder = puzzle.tiles.map(tile => tile.id);
+    const validCategoryIds = new Set(puzzle.categories.map(cat => cat.id));
+
+    state.solvedIds = (state.solvedIds || []).filter(id => validCategoryIds.has(id));
+    state.units = (state.units || []).map(unit => ({
+      id: unit.id || `u-${Math.random().toString(36).slice(2, 9)}`,
+      categoryId: unit.categoryId,
+      tileIds: Array.isArray(unit.tileIds) ? unit.tileIds.filter(id => validTileIds.has(id)) : []
+    })).filter(unit => validCategoryIds.has(unit.categoryId) && unit.tileIds.length);
+
+    const seenTileIds = new Set();
+    state.units = state.units.filter(unit => {
+      const deduped = unit.tileIds.filter(tileId => !seenTileIds.has(tileId));
+      deduped.forEach(tileId => seenTileIds.add(tileId));
+      unit.tileIds = deduped;
+      return unit.tileIds.length > 0;
+    });
+
+    for (const tile of puzzle.tiles) {
+      if (!seenTileIds.has(tile.id) && !state.solvedIds.includes(tile.categoryId)) {
+        state.units.push({ id: `u-${tile.id}`, categoryId: tile.categoryId, tileIds: [tile.id] });
+      }
     }
+
+    state.selected = (state.selected || []).filter(id => state.units.some(unit => unit.id === id)).slice(0, 2);
+
     if (state.mistakes >= 4) {
       state.locked = true;
       state.revealedOnLoss = true;
@@ -182,50 +204,6 @@
       state.won = true;
       state.locked = true;
     }
-  }
-
-  function submitSelection() {
-    if (state.locked || state.selected.length !== 4) return;
-    const selectedTiles = state.selected.map(id => puzzle.tileById.get(id));
-    const categoryId = selectedTiles[0].categoryId;
-    const allMatch = selectedTiles.every(tile => tile.categoryId === categoryId);
-
-    if (allMatch) {
-      if (!state.solvedIds.includes(categoryId)) state.solvedIds.push(categoryId);
-      state.selected = [];
-      state.tileOrder = orderTilesForSolvedFirst();
-      const solvedCount = state.solvedIds.length;
-      if (solvedCount === puzzle.categories.length) {
-        state.won = true;
-        state.locked = true;
-        setStatus('Solved. A new puzzle will appear automatically on the next date or week.');
-      } else {
-        setStatus('Correct.');
-      }
-    } else {
-      state.mistakes += 1;
-      const grouped = groupSelectedByCategory(selectedTiles);
-      const oneAway = [...grouped.values()].some(count => count === 3);
-      setStatus(oneAway ? 'One away.' : 'Not a group.');
-      if (state.mistakes >= 4) {
-        state.locked = true;
-        state.revealedOnLoss = true;
-        setStatus('Out of mistakes. The groups are shown below.');
-      }
-      state.selected = [];
-    }
-    saveState();
-    render();
-  }
-
-  function groupSelectedByCategory(selectedTiles) {
-    const map = new Map();
-    selectedTiles.forEach(tile => map.set(tile.categoryId, (map.get(tile.categoryId) || 0) + 1));
-    return map;
-  }
-
-  function setStatus(message) {
-    state.statusMessage = message;
   }
 
   function loadState() {
@@ -260,51 +238,28 @@
       throw new Error(`Not enough unique categories to build a ${count}-group puzzle.`);
     }
 
-    const categories = chosenCategories.map((cat, catIndex) => ({
-      ...cat,
-      order: catIndex
-    }));
-
+    const categories = chosenCategories.map((cat, catIndex) => ({ ...cat, order: catIndex }));
     const tiles = categories.flatMap(cat => cat.words.map((word, wordIndex) => ({
       id: `${cat.id}-${wordIndex}`,
       word,
       categoryId: cat.id,
-      categoryTitle: cat.title
+      categoryTitle: cat.title,
+      order: wordIndex
     })));
 
-    const tileOrder = [...tiles];
-    shuffleInPlace(tileOrder, mulberry32(hashString(`${config.storagePrefix}:${seed}:tiles`)));
+    const shuffledTiles = [...tiles];
+    shuffleInPlace(shuffledTiles, mulberry32(hashString(`${config.storagePrefix}:${seed}:tiles`)));
 
     return {
       categories,
       categoryById: new Map(categories.map(cat => [cat.id, cat])),
-      tiles: tileOrder,
+      tiles: shuffledTiles,
       tileById: new Map(tiles.map(tile => [tile.id, tile]))
     };
   }
 
-  function orderTilesForSolvedFirst() {
-    const solved = [];
-    const unsolved = [];
-    const current = state.tileOrder.map(id => puzzle.tileById.get(id)).filter(Boolean);
-    current.forEach(tile => {
-      if (state.solvedIds.includes(tile.categoryId)) solved.push(tile.id);
-      else unsolved.push(tile.id);
-    });
-    return [...solved, ...unsolved];
-  }
-
-  function shuffleUnsolved(tileOrder) {
-    const solved = [];
-    const unsolved = [];
-    tileOrder.forEach(id => {
-      const tile = puzzle.tileById.get(id);
-      if (!tile) return;
-      if (state.solvedIds.includes(tile.categoryId)) solved.push(id);
-      else unsolved.push(id);
-    });
-    shuffleInPlace(unsolved, mulberry32(hashString(`${storageKey}:${Date.now()}`)));
-    return [...solved, ...unsolved];
+  function setStatus(message) {
+    state.statusMessage = message;
   }
 
   function render() {
@@ -312,11 +267,10 @@
     renderStrikes();
     renderSolvedTray();
     renderBoard();
-    renderButtons();
   }
 
   function renderMeta() {
-    mistakesEl.textContent = `${state.mistakes} / 4`;
+    mistakesEl.textContent = String(state.mistakes);
     groupsEl.textContent = `${state.solvedIds.length} / ${puzzle.categories.length}`;
     statusBannerEl.textContent = state.statusMessage || '';
   }
@@ -343,7 +297,7 @@
       title.textContent = cat.title;
       const words = document.createElement('p');
       words.className = 'solved-words';
-      words.textContent = cat.words.join(', ');
+      words.textContent = cat.words.map(formatDisplayWord).join(', ');
       card.append(title, words);
       solvedTrayEl.appendChild(card);
     });
@@ -351,46 +305,120 @@
 
   function renderBoard() {
     boardEl.innerHTML = '';
-    state.tileOrder.forEach(tileId => {
-      const tile = puzzle.tileById.get(tileId);
-      if (!tile) return;
-      const solvedIndex = state.solvedIds.indexOf(tile.categoryId);
-      const shouldHide = solvedIndex !== -1;
-      if (shouldHide) return;
+    getVisibleUnits().forEach(unit => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'tile';
-      btn.textContent = prettifyWord(tile.word);
-      const isSelected = state.selected.includes(tile.id);
+      btn.className = `tile size-${Math.min(unit.tileIds.length, 4)}${unit.tileIds.length >= 2 ? ' grouped' : ''}`;
+      const isSelected = state.selected.includes(unit.id);
       if (isSelected) btn.classList.add('selected');
       btn.setAttribute('aria-pressed', String(isSelected));
-      btn.addEventListener('click', () => toggleTile(tile.id));
+      btn.addEventListener('click', () => toggleUnit(unit.id));
+
+      const label = document.createElement('span');
+      label.className = 'tile-label';
+      label.textContent = formatUnitLabel(unit);
+      btn.appendChild(label);
       boardEl.appendChild(btn);
     });
   }
 
-  function renderButtons() {
-    submitBtn.disabled = state.locked || state.selected.length !== 4;
+  function getVisibleUnits() {
+    return state.units.filter(unit => !state.solvedIds.includes(unit.categoryId));
   }
 
-  function prettifyWord(word) {
-    return word
-      .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/([A-Z]{4,})([A-Z][a-z])/g, '$1 $2');
+  function formatUnitLabel(unit) {
+    const words = unit.tileIds
+      .map(id => puzzle.tileById.get(id))
+      .filter(Boolean)
+      .sort((a, b) => a.order - b.order)
+      .map(tile => formatDisplayWord(tile.word));
+    return words.join(', ');
   }
 
-  function toggleTile(tileId) {
+  function formatDisplayWord(word) {
+    const spaced = word
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .replace(/_/g, ' ')
+      .trim()
+      .toLowerCase();
+    return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : '';
+  }
+
+  function toggleUnit(unitId) {
     if (state.locked) return;
-    if (state.selected.includes(tileId)) {
-      state.selected = state.selected.filter(id => id !== tileId);
-    } else {
-      if (state.selected.length >= 4) return;
-      state.selected.push(tileId);
+    if (state.selected.includes(unitId)) {
+      state.selected = state.selected.filter(id => id !== unitId);
+      saveState();
+      renderBoard();
+      return;
     }
+
+    if (state.selected.length >= 2) return;
+    state.selected = [...state.selected, unitId];
+
+    if (state.selected.length === 2) {
+      resolvePair();
+      return;
+    }
+
     saveState();
     renderBoard();
-    renderButtons();
+  }
+
+  function resolvePair() {
+    const [firstId, secondId] = state.selected;
+    const first = state.units.find(unit => unit.id === firstId);
+    const second = state.units.find(unit => unit.id === secondId);
+    if (!first || !second) {
+      state.selected = [];
+      saveState();
+      render();
+      return;
+    }
+
+    if (first.categoryId === second.categoryId) {
+      const merged = {
+        id: `u-${first.categoryId}-${Date.now().toString(36)}`,
+        categoryId: first.categoryId,
+        tileIds: [...new Set([...first.tileIds, ...second.tileIds])]
+      };
+      state.units = state.units.filter(unit => unit.id !== firstId && unit.id !== secondId);
+
+      if (merged.tileIds.length >= 4) {
+        if (!state.solvedIds.includes(merged.categoryId)) state.solvedIds.push(merged.categoryId);
+        setStatus('Correct.');
+      } else {
+        state.units.push(merged);
+        setStatus('Match found.');
+      }
+
+      if (state.solvedIds.length === puzzle.categories.length) {
+        state.won = true;
+        state.locked = true;
+        setStatus('Solved. A new puzzle will appear automatically on the next date or week.');
+      }
+    } else {
+      state.mistakes += 1;
+      setStatus('Not a match.');
+      if (state.mistakes >= 4) {
+        state.locked = true;
+        state.revealedOnLoss = true;
+        setStatus('Out of mistakes. The groups are shown below.');
+      }
+    }
+
+    state.selected = [];
+    saveState();
+    render();
+  }
+
+  function shuffleUnits() {
+    const visible = getVisibleUnits();
+    shuffleInPlace(visible, mulberry32(hashString(`${storageKey}:${Date.now()}`)));
+    const visibleIds = new Set(visible.map(unit => unit.id));
+    const hidden = state.units.filter(unit => !visibleIds.has(unit.id));
+    state.units = [...visible, ...hidden];
   }
 
   function getSeedInfo(type) {
@@ -401,15 +429,9 @@
       const mondayOffset = day === 0 ? -6 : 1 - day;
       const monday = new Date(local);
       monday.setDate(local.getDate() + mondayOffset);
-      return {
-        key: formatDateKey(monday),
-        label: formatLongDate(monday)
-      };
+      return { key: formatDateKey(monday), label: formatLongDate(monday) };
     }
-    return {
-      key: formatDateKey(local),
-      label: formatLongDate(local)
-    };
+    return { key: formatDateKey(local), label: formatLongDate(local) };
   }
 
   function formatDateKey(date) {
@@ -420,11 +442,7 @@
   }
 
   function formatLongDate(date) {
-    return new Intl.DateTimeFormat('en-CA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(date);
+    return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
   }
 
   function hashString(str) {

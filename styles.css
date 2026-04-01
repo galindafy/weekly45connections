@@ -71,10 +71,7 @@ h1 {
   color: var(--muted);
 }
 .strikes {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 12px;
+  display: none;
 }
 .strike-dot {
   width: 12px;
@@ -129,15 +126,6 @@ h1 {
 .controls button:hover {
   background: #f2f1ec;
 }
-.controls .submit-btn {
-  background: var(--ink);
-  color: #fff;
-  border-color: var(--ink);
-}
-.controls .submit-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
 .board {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
@@ -152,13 +140,21 @@ h1 {
   border-radius: 12px;
   padding: 10px 8px;
   text-align: center;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 15px;
-  line-height: 1.15;
-  letter-spacing: 0.01em;
+  line-height: 1.2;
+  letter-spacing: 0;
   cursor: pointer;
   transition: transform 0.06s ease, background 0.12s ease;
-  text-transform: uppercase;
+  text-transform: none;
+}
+.tile-label {
+  display: block;
+  white-space: normal;
+  word-break: break-word;
+}
+.tile.grouped .tile-label {
+  font-weight: 700;
 }
 .tile:hover {
   background: var(--tile-hover);
