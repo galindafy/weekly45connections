@@ -130,7 +130,7 @@
   const deselectBtn = document.getElementById('deselectBtn');
 
   const seedInfo = getSeedInfo(config.puzzleType);
-  const storageKey = `${config.storagePrefix}:v3:${seedInfo.key}`;
+  const storageKey = `${config.storagePrefix}:v5:${seedInfo.key}`;
   seedLabelEl.textContent = seedInfo.label;
 
   const puzzle = buildPuzzle(seedInfo.key, config.categoryCount);
@@ -304,27 +304,36 @@
     });
   }
 
-  function renderBoard() {
-    boardEl.innerHTML = '';
-    getVisibleUnits().forEach(unit => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `tile size-${Math.min(unit.tileIds.length, 4)}${unit.tileIds.length >= 2 ? ' grouped' : ''}`;
-      const isSelected = state.selected.includes(unit.id);
-      if (isSelected) btn.classList.add('selected');
-      btn.setAttribute('aria-pressed', String(isSelected));
-      btn.addEventListener('click', () => toggleUnit(unit.id));
+  
+function renderBoard() {
+  boardEl.innerHTML = '';
+  getVisibleUnits().forEach(unit => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tile size-${Math.min(unit.tileIds.length, 4)}${unit.tileIds.length >= 2 ? ' grouped' : ''}${unit.tileIds.length >= 3 ? ' hoverable' : ''}`;
+    const isSelected = state.selected.includes(unit.id);
+    if (isSelected) btn.classList.add('selected');
+    if (shakingIds.includes(unit.id)) btn.classList.add('shake');
+    btn.setAttribute('aria-pressed', String(isSelected));
+    btn.addEventListener('click', () => toggleUnit(unit.id));
 
-      const label = document.createElement('span');
-      label.className = 'tile-label';
-      label.textContent = formatUnitLabel(unit);
-      btn.appendChild(label);
-      boardEl.appendChild(btn);
-    });
-  }
+    const label = document.createElement('span');
+    label.className = 'tile-label';
+    label.textContent = formatUnitLabel(unit);
+    btn.appendChild(label);
 
+    if (unit.tileIds.length >= 3) {
+      const hover = document.createElement('span');
+      hover.className = 'hover-content';
+      hover.textContent = formatHoverLabel(unit);
+      btn.appendChild(hover);
+    }
 
-  function shakeSelected() {
+    boardEl.appendChild(btn);
+  });
+}
+
+function shakeSelected() {
     shakingIds = [...state.selected];
     renderBoard();
     window.setTimeout(() => {
@@ -337,26 +346,68 @@
     return state.units.filter(unit => !state.solvedIds.includes(unit.categoryId));
   }
 
-  function formatUnitLabel(unit) {
-    const words = unit.tileIds
-      .map(id => puzzle.tileById.get(id))
-      .filter(Boolean)
-      .sort((a, b) => a.order - b.order)
-      .map(tile => formatDisplayWord(tile.word));
-    return words.join(', ');
-  }
+  
+function formatUnitLabel(unit) {
+  const words = getUnitDisplayWords(unit);
+  if (words.length >= 3) return `${words[0]}, ${words[1]}, ... [${words.length}]`;
+  return words.join(', ');
+}
 
-  function formatDisplayWord(word) {
-    const spaced = word
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-      .replace(/_/g, ' ')
-      .trim()
-      .toLowerCase();
-    return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : '';
-  }
+function formatHoverLabel(unit) {
+  return getUnitDisplayWords(unit).join(', ');
+}
 
-  function toggleUnit(unitId) {
+function getUnitDisplayWords(unit) {
+  return unit.tileIds
+    .map(id => puzzle.tileById.get(id))
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order)
+    .map(tile => formatDisplayWord(tile.word));
+}
+
+function formatDisplayWord(word) {
+  const acronymSet = new Set(['PDF', 'DOCX', 'CSV', 'PNG', 'LAB', 'GPS', 'DNA', 'RNA', 'USB', 'LED', 'TV']);
+  const manualSpacing = {
+    SLEEPINGBAG: 'sleeping bag',
+    MIRRORCAP: 'mirror cap',
+    COOLERBAG: 'cooler bag',
+    FLIPFLOPS: 'flip flops',
+    SCALEBAR: 'scale bar',
+    COMPASSROSE: 'compass rose',
+    PHARMACYDEPT: 'pharmacy dept',
+    PLAIDBLANKET: 'plaid blanket',
+    CHECKOUTDESK: 'checkout desk',
+    CEDARWOOD: 'cedarwood',
+    VANILLABEAN: 'vanilla bean',
+    WOODPANEL: 'wood panel',
+    DRYWALLBOARD: 'drywall board',
+    EYEWALL: 'eyewall'
+  };
+  const smallWords = new Set(['a', 'an', 'and', 'as', 'at', 'au', 'but', 'by', 'de', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'vs', 'with']);
+
+  let spaced = manualSpacing[word] || word;
+  spaced = spaced
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!spaced) return '';
+  if (acronymSet.has(spaced.toUpperCase())) return spaced.toUpperCase();
+
+  const lower = spaced.toLowerCase();
+  return lower.split(' ').map((part, index) => {
+    if (!part) return part;
+    if (part.includes('-')) {
+      return part.split('-').map(seg => seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : seg).join('-');
+    }
+    if (index > 0 && smallWords.has(part)) return part;
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }).join(' ');
+}
+
+function toggleUnit(unitId) {
     if (state.locked) return;
     if (state.selected.includes(unitId)) {
       state.selected = state.selected.filter(id => id !== unitId);
@@ -377,55 +428,64 @@
     renderBoard();
   }
 
-  function resolvePair() {
-    const [firstId, secondId] = state.selected;
-    const first = state.units.find(unit => unit.id === firstId);
-    const second = state.units.find(unit => unit.id === secondId);
-    if (!first || !second) {
-      state.selected = [];
-      saveState();
-      render();
-      return;
-    }
-
-    if (first.categoryId === second.categoryId) {
-      const merged = {
-        id: `u-${first.categoryId}-${Date.now().toString(36)}`,
-        categoryId: first.categoryId,
-        tileIds: [...new Set([...first.tileIds, ...second.tileIds])]
-      };
-      state.units = state.units.filter(unit => unit.id !== firstId && unit.id !== secondId);
-
-      if (merged.tileIds.length >= 4) {
-        if (!state.solvedIds.includes(merged.categoryId)) state.solvedIds.push(merged.categoryId);
-        setStatus('Correct.');
-      } else {
-        state.units.push(merged);
-        setStatus('Match found.');
-      }
-
-      if (state.solvedIds.length === puzzle.categories.length) {
-        state.won = true;
-        state.locked = true;
-        setStatus('Solved. A new puzzle will appear automatically on the next date or week.');
-      }
-    } else {
-      state.mistakes += 1;
-      setStatus('Not a match.');
-      shakeSelected();
-      if (state.mistakes >= 4) {
-        state.locked = true;
-        state.revealedOnLoss = true;
-        setStatus('Out of mistakes. The groups are shown below.');
-      }
-    }
-
+  
+function resolvePair() {
+  const [firstId, secondId] = state.selected;
+  const firstIndex = state.units.findIndex(unit => unit.id === firstId);
+  const secondIndex = state.units.findIndex(unit => unit.id === secondId);
+  const first = state.units[firstIndex];
+  const second = state.units[secondIndex];
+  if (!first || !second) {
     state.selected = [];
     saveState();
     render();
+    return;
   }
 
-  function shuffleUnits() {
+  if (first.categoryId === second.categoryId) {
+    const merged = {
+      id: `u-${first.categoryId}-${Date.now().toString(36)}`,
+      categoryId: first.categoryId,
+      tileIds: [...new Set([...first.tileIds, ...second.tileIds])]
+    };
+
+    let insertIndex = secondIndex;
+    const removeIndexes = [firstIndex, secondIndex].sort((a, b) => b - a);
+    removeIndexes.forEach(index => {
+      state.units.splice(index, 1);
+      if (index < insertIndex) insertIndex -= 1;
+    });
+
+    if (merged.tileIds.length >= 4) {
+      if (!state.solvedIds.includes(merged.categoryId)) state.solvedIds.push(merged.categoryId);
+      setStatus('Correct.');
+    } else {
+      state.units.splice(insertIndex, 0, merged);
+      setStatus('Match found.');
+    }
+
+    if (state.solvedIds.length === puzzle.categories.length) {
+      state.won = true;
+      state.locked = true;
+      setStatus('Solved. A new puzzle will appear automatically on the next date or week.');
+    }
+  } else {
+    state.mistakes += 1;
+    setStatus('Not a match.');
+    shakeSelected();
+    if (state.mistakes >= 4) {
+      state.locked = true;
+      state.revealedOnLoss = true;
+      setStatus('Out of mistakes. The groups are shown below.');
+    }
+  }
+
+  state.selected = [];
+  saveState();
+  render();
+}
+
+function shuffleUnits() {
     const visible = getVisibleUnits();
     shuffleInPlace(visible, mulberry32(hashString(`${storageKey}:${Date.now()}`)));
     const visibleIds = new Set(visible.map(unit => unit.id));
