@@ -1,350 +1,408 @@
-const BOARD_SIZE = 45;
-const GROUP_SIZE = 45;
+const CATEGORY_COUNT = 500;
+const CATEGORY_SIZE = 45;
+const MEGA_PICK_COUNT = 45;
+const SOLVED_COLOURS = ['var(--yellow)', 'var(--green)', 'var(--blue)', 'var(--purple)'];
 
-document.addEventListener("DOMContentLoaded", () => {
-  const WEEK_KEY = getWeekKey();
+const FAMILY_POOLS = [
+  {
+    family: 'Women names',
+    proper: true,
+    items: ['Abigail','Addison','Alexis','Alice','Amelia','Anna','Aria','Aubrey','Audrey','Ava','Bella','Brooklyn','Camila','Caroline','Charlotte','Chloe','Claire','Eleanor','Elizabeth','Ella','Ellie','Emily','Emma','Evelyn','Gabriella','Grace','Hannah','Harper','Hazel','Isabella','Ivy','Layla','Leah','Lily','Lucy','Luna','Madeline','Maya','Mia','Natalie','Nora','Olivia','Penelope','Riley','Ruby','Samantha','Scarlett','Sophia','Stella','Violet','Willow','Zoe']
+  },
+  {
+    family: 'Men names',
+    proper: true,
+    items: ['Alexander','Andrew','Anthony','Asher','Benjamin','Caleb','Carter','Charles','Christopher','Daniel','David','Dylan','Ethan','Ezra','Gabriel','Grayson','Henry','Hudson','Isaac','Jack','Jackson','Jacob','James','Julian','Leo','Levi','Liam','Lincoln','Logan','Lucas','Luke','Mason','Mateo','Matthew','Michael','Nathan','Noah','Nolan','Oliver','Owen','Samuel','Sebastian','Theodore','Thomas','William','Wyatt']
+  },
+  {
+    family: 'Surnames',
+    proper: true,
+    items: ['Adams','Allen','Anderson','Bailey','Baker','Bell','Bennett','Brooks','Brown','Campbell','Carter','Clark','Collins','Cook','Cooper','Cox','Davis','Diaz','Edwards','Evans','Foster','Garcia','Gonzalez','Gray','Green','Hall','Harris','Hayes','Henderson','Hill','Howard','Hughes','Jackson','Jenkins','Johnson','Kelly','King','Lee','Lewis','Long','Martinez','Miller','Mitchell','Moore','Morgan','Morris','Murphy','Nelson','Parker','Perez','Perry','Peterson','Phillips','Powell','Price','Ramirez','Reed','Richardson','Rivera','Roberts','Robinson','Rodriguez','Rogers','Ross','Russell','Sanders','Scott','Simmons','Smith','Stewart','Taylor','Thomas','Torres','Turner','Walker','Ward','Washington','Watson','White','Williams','Wilson','Wood','Wright','Young']
+  },
+  {
+    family: 'Dog names',
+    proper: true,
+    items: ['Archie','Bailey','Bandit','Bear','Bella','Bentley','Blue','Bodie','Bruno','Buddy','Charlie','Chester','Cleo','Coco','Cooper','Daisy','Dexter','Duke','Ellie','Finn','Frankie','George','Ginger','Harley','Hazel','Henry','Honey','Jack','Jasper','Koda','Leo','Loki','Louie','Luca','Lucky','Luna','Maggie','Maple','Max','Milo','Murphy','Nala','Nova','Oliver','Ollie','Penny','Pepper','Piper','Poppy','Remi','Rosie','Roxy','Ruby','Sadie','Scout','Shadow','Simba','Stella','Teddy','Winston','Winnie','Ziggy']
+  },
+  {
+    family: 'Dog breeds',
+    proper: true,
+    items: ['Akita','Basenji','Beagle','Bernese Mountain Dog','Bichon Frise','Bloodhound','Border Collie','Boston Terrier','Boxer','Brittany','Bull Terrier','Bulldog','Cairn Terrier','Cane Corso','Cavalier King Charles Spaniel','Chihuahua','Chow Chow','Cocker Spaniel','Collie','Corgi','Dachshund','Dalmatian','Doberman Pinscher','English Setter','French Bulldog','German Shepherd','German Shorthaired Pointer','Golden Retriever','Great Dane','Greyhound','Havanese','Irish Setter','Jack Russell Terrier','Labrador Retriever','Lhasa Apso','Maltese','Miniature Pinscher','Newfoundland','Old English Sheepdog','Papillon','Pekingese','Pit Bull Terrier','Pomeranian','Poodle','Pug','Rottweiler','Saint Bernard','Samoyed','Schnauzer','Scottish Terrier','Shetland Sheepdog','Shiba Inu','Shih Tzu','Siberian Husky','Springer Spaniel','Vizsla','Weimaraner','West Highland White Terrier','Whippet','Yorkshire Terrier']
+  },
+  {
+    family: 'Flowers',
+    proper: false,
+    items: ['alyssum','anemone','aster','azalea','begonia','bellflower','black-eyed susan','bluebell','buttercup','camellia','carnation','chrysanthemum','clematis','columbine','coneflower','cosmos','crocus','dahlia','daisy','delphinium','foxglove','freesia','gardenia','geranium','gladiolus','hibiscus','hollyhock','hydrangea','iris','jasmine','lavender','lilac','lily','magnolia','marigold','nasturtium','orchid','pansy','peony','petunia','phlox','poppy','primrose','ranunculus','rose','snapdragon','sunflower','sweet pea','tulip','verbena','violet','wisteria','zinnia']
+  },
+  {
+    family: 'Sci-fi shows',
+    proper: true,
+    items: ['Andor','Battlestar Galactica','Black Mirror','Doctor Who','Fallout','Firefly','For All Mankind','Foundation','Fringe','Futurama','Humans','Lost in Space','Orphan Black','Quantum Leap','Raised by Wolves','Red Dwarf','Silo','Star Trek','Star Trek: Discovery','Star Trek: Picard','Star Trek: Strange New Worlds','Star Wars: The Clone Wars','Stargate Atlantis','Stargate SG-1','Stranger Things','The 100','The Expanse','The Last of Us','The Mandalorian','The OA','The Orville','The Peripheral','The Twilight Zone','Torchwood','Travelers','Westworld','Severance','Snowpiercer','Upload','Terminator: The Sarah Connor Chronicles','Counterpart','Farscape','Dark Matter','The X-Files','Continuum','Caprica','Halo','Lexx','Resident Alien','11.22.63']
+  },
+  {
+    family: 'Comic artists',
+    proper: true,
+    items: ['Al Capp','Alex Ross','Art Spiegelman','Bill Watterson','Charles Addams','Chris Ware','Daniel Clowes','David Mazzucchelli','Frank Cho','Frank Miller','Gary Larson','George Herriman','Gil Kane','Greg Capullo','Jack Kirby','Jaime Hernandez','Jeff Smith','Jim Davis','Jim Lee','Joe Kubert','John Buscema','John Byrne','Lynn Johnston','Marjane Satrapi','Matt Groening','Mike Mignola','Moebius','Neal Adams','Osamu Tezuka','P. Craig Russell','Patrick McDonnell','Quino','Raina Telgemeier','Rob Liefeld','Robert Crumb','Rumiko Takahashi','Sergio Aragones','Stan Sakai','Steve Ditko','Terry Moore','Todd McFarlane','Walt Kelly','Winsor McCay','Will Eisner','Lynda Barry','Adrian Tomine','Alison Bechdel','Darwyn Cooke','Fiona Staples','Gerry Trudeau']
+  },
+  {
+    family: 'Spices and herbs',
+    proper: false,
+    items: ['allspice','anise','basil','bay leaf','caraway','cardamom','cayenne','celery seed','chervil','chili powder','chives','cilantro','cinnamon','clove','coriander','cumin','curry powder','dill','fennel','fenugreek','garlic powder','ginger','lavender','lemongrass','marjoram','mint','mustard seed','nutmeg','oregano','paprika','parsley','peppermint','rosemary','saffron','sage','savory','sesame','star anise','sumac','tarragon','thyme','turmeric','vanilla','za’atar','white pepper','black pepper','juniper']
+  },
+  {
+    family: 'Pasta shapes',
+    proper: false,
+    items: ['acini di pepe','agnolotti','anelli','bigoli','bucatini','campanelle','cannelloni','capellini','casarecce','cavatappi','cavatelli','conchiglie','ditalini','farfalle','fettuccine','filini','fusilli','gemelli','gnocchetti','lasagna','linguine','lumache','macaroni','mafaldine','manicotti','mezzi rigatoni','orecchiette','orzo','paccheri','pappardelle','pastina','penne','perciatelli','radiatori','ravioli','rigatoni','rotelle','rotini','shells','spaghetti','stelline','strozzapreti','tagliatelle','tortellini','trofie','vermicelli','ziti']
+  },
+  {
+    family: 'Actor names',
+    proper: true,
+    items: ['Amy Adams','Andrew Garfield','Anne Hathaway','Bill Murray','Brad Pitt','Cate Blanchett','Chris Evans','Chris Hemsworth','Christian Bale','Daniel Craig','Denzel Washington','Emma Stone','Emma Thompson','Florence Pugh','Gary Oldman','Glenn Close','Harrison Ford','Idris Elba','Jodie Foster','Julia Roberts','Julianne Moore','Kate Winslet','Keanu Reeves','Kerry Washington','Leonardo DiCaprio','Lupita Nyong\'o','Mahershala Ali','Margot Robbie','Matt Damon','Meryl Streep','Michael B. Jordan','Michelle Yeoh','Natalie Portman','Nicole Kidman','Paul Mescal','Pedro Pascal','Rachel McAdams','Regina King','Ryan Gosling','Saoirse Ronan','Scarlett Johansson','Sigourney Weaver','Tom Cruise','Tom Hanks','Viola Davis','Will Smith','Zendaya','Robert Downey Jr.','Sandra Bullock','Jake Gyllenhaal']
+  },
+  {
+    family: 'Things found in an office',
+    proper: false,
+    items: ['binder','binder clip','bookshelf','briefcase','bulletin board','calculator','calendar','chair','clipboard','coffee mug','computer mouse','conference phone','desk','desk lamp','drawer','envelope','eraser','filing cabinet','folder','highlighter','hole punch','keyboard','lanyard','letter opener','monitor','notebook','paper clips','paper shredder','pen','pencil','pencil cup','planner','printer','projector','pushpin','recycling bin','ruler','scissors','speakerphone','stapler','sticky notes','surge protector','tape dispenser','telephone','whiteboard','work badge','writing pad','mail tray','scanner','rolling chair']
+  },
+  {
+    family: 'Book titles',
+    proper: true,
+    items: ['1984','A Farewell to Arms','A Little Life','A Tale of Two Cities','A Wrinkle in Time','Anne of Green Gables','Beloved','Brave New World','Catch-22','Charlotte\'s Web','Crime and Punishment','Dune','Emma','Fahrenheit 451','Frankenstein','Gone Girl','Great Expectations','Hamlet','Jane Eyre','Little Women','Lolita','Moby-Dick','Normal People','Of Mice and Men','On the Road','One Hundred Years of Solitude','Persuasion','Pride and Prejudice','Rebecca','Sense and Sensibility','Slaughterhouse-Five','The Bell Jar','The Book Thief','The Catcher in the Rye','The Color Purple','The Fellowship of the Ring','The Giver','The Goldfinch','The Great Gatsby','The Handmaid\'s Tale','The Hobbit','The Hunger Games','The Kite Runner','The Little Prince','The Lord of the Flies','The Odyssey','The Secret History','The Shining','The Sun Also Rises','The Trial','The Wind-Up Bird Chronicle','To Kill a Mockingbird','Wuthering Heights']
+  },
+  {
+    family: 'Movie titles',
+    proper: true,
+    items: ['Alien','Amadeus','Barbie','Black Panther','Blade Runner','Casablanca','Chinatown','Coco','Die Hard','Dune','E.T. the Extra-Terrestrial','Fight Club','Forrest Gump','Get Out','Gladiator','Goodfellas','Gravity','Her','Inception','Inside Out','Interstellar','Jaws','Jurassic Park','La La Land','Mad Max: Fury Road','Memento','Moonlight','No Country for Old Men','Parasite','Psycho','Ratatouille','Rear Window','Rocky','Roma','Scream','Shrek','Spotlight','The Batman','The Dark Knight','The Departed','The Godfather','The Grand Budapest Hotel','The Incredibles','The Matrix','The Silence of the Lambs','The Social Network','The Sound of Music','The Wizard of Oz','Titanic','Toy Story','Up','Whiplash']
+  },
+  {
+    family: 'Song titles',
+    proper: true,
+    items: ['All Too Well','Bad Romance','Because the Night','Billie Jean','Blank Space','Blinding Lights','Bohemian Rhapsody','Born to Run','Break Free','California Gurls','Call Me Maybe','Creep','Dancing Queen','Don\'t Stop Believin\'','Dreams','Every Breath You Take','Fast Car','Firework','Girls Just Want to Have Fun','Good 4 U','Halo','Happy','Hey Jude','Hound Dog','I Want It That Way','I Will Always Love You','Imagine','Ironic','Jolene','Levitating','Like a Prayer','Losing My Religion','Mr. Brightside','No Scrubs','One More Time','Rolling in the Deep','Shallow','Single Ladies','Smells Like Teen Spirit','Style','Take On Me','Teenage Dream','Umbrella','Vogue','Waterfalls','We Belong Together','Wonderwall','Yellow','You Belong with Me','Your Song']
+  },
+  {
+    family: 'Authors',
+    proper: true,
+    items: ['Agatha Christie','Alice Munro','Ann Patchett','Anthony Doerr','Arundhati Roy','Margaret Laurence','Barbara Kingsolver','Brandon Sanderson','C.S. Lewis','Charles Dickens','Chimamanda Ngozi Adichie','Colleen Hoover','Cormac McCarthy','Donna Tartt','Douglas Adams','Edith Wharton','Elena Ferrante','Emily Brontë','Ernest Hemingway','F. Scott Fitzgerald','George Eliot','George Orwell','Gillian Flynn','Harper Lee','Hilary Mantel','Ian McEwan','Isabel Allende','J.K. Rowling','J.R.R. Tolkien','Jane Austen','James Baldwin','John Grisham','John Steinbeck','Kazuo Ishiguro','Khaled Hosseini','Louisa May Alcott','Margaret Atwood','Michael Ondaatje','Oscar Wilde','Ray Bradbury','Salman Rushdie','Stephen King','Toni Morrison','Virginia Woolf','Zadie Smith']
+  },
+  {
+    family: 'TV shows',
+    proper: true,
+    items: ['Abbott Elementary','Arrested Development','Better Call Saul','Big Little Lies','Black Mirror','Breaking Bad','Bridgerton','Buffy the Vampire Slayer','Community','Curb Your Enthusiasm','Dawson\'s Creek','Deadwood','ER','Fargo','Friday Night Lights','Friends','Game of Thrones','Gilmore Girls','Gossip Girl','Grey\'s Anatomy','House','How I Met Your Mother','Killing Eve','Law & Order','Lost','Mad Men','Modern Family','New Girl','Only Murders in the Building','Parks and Recreation','Peaky Blinders','Schitt\'s Creek','Seinfeld','Sex and the City','Stranger Things','Succession','Ted Lasso','The Bear','The Crown','The Good Place','The Last of Us','The Office','The Sopranos','The West Wing','The Wire','Twin Peaks','Veep','Yellowjackets']
+  },
+  {
+    family: 'US states',
+    proper: true,
+    items: ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming']
+  },
+  {
+    family: 'European countries',
+    proper: true,
+    items: ['Albania','Andorra','Austria','Belarus','Belgium','Bosnia and Herzegovina','Bulgaria','Croatia','Czech Republic','Denmark','Estonia','Finland','France','Germany','Greece','Hungary','Iceland','Ireland','Italy','Kosovo','Latvia','Liechtenstein','Lithuania','Luxembourg','Malta','Moldova','Monaco','Montenegro','Netherlands','North Macedonia','Norway','Poland','Portugal','Romania','San Marino','Serbia','Slovakia','Slovenia','Spain','Sweden','Switzerland','Ukraine','United Kingdom','Vatican City','Georgia']
+  },
+  {
+    family: 'US cities',
+    proper: true,
+    items: ['Albany','Albuquerque','Anchorage','Atlanta','Austin','Baltimore','Baton Rouge','Birmingham','Boise','Boston','Buffalo','Charleston','Charlotte','Chicago','Cincinnati','Cleveland','Columbus','Dallas','Denver','Detroit','El Paso','Fort Worth','Fresno','Hartford','Honolulu','Houston','Indianapolis','Jacksonville','Kansas City','Las Vegas','Little Rock','Los Angeles','Louisville','Memphis','Miami','Milwaukee','Minneapolis','Nashville','New Orleans','New York City','Oakland','Oklahoma City','Omaha','Orlando','Philadelphia','Phoenix','Pittsburgh','Portland','Raleigh','Richmond','Sacramento','Salt Lake City','San Antonio','San Diego','San Francisco','Seattle','St. Louis','Tampa','Tucson','Tulsa','Washington, D.C.']
+  }
+];
 
-  let state = {
-    tiles: [],
-    selected: [],
+function mulberry32(seed) {
+  return function () {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
+}
 
-  init();
-
-  function init() {
-    try {
-      const saved = localStorage.getItem(WEEK_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.tiles) && Array.isArray(parsed.selected)) {
-          state = parsed;
-          render();
-          return;
-        }
-      }
-    } catch (e) {}
-
-    generateBoard();
-    save();
-    render();
+function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
+  return h >>> 0;
+}
 
-  function getWeekKey() {
-    const d = new Date();
-    const start = new Date(Date.UTC(d.getFullYear(), 0, 1));
-    const now = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = Math.floor((now - start) / 86400000) + 1;
-    const week = Math.ceil(dayNum / 7);
-    return `connections_weekly_45x45_${d.getFullYear()}_${week}`;
+function shuffleInPlace(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+  return arr;
+}
 
-  function makeId() {
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return `id_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  }
+function getISOWeekInfo(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return {
+    year: d.getUTCFullYear(),
+    week: weekNo,
+    key: `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
+  };
+}
 
-  const CATEGORY_POOLS = [
-    [
-      "spaghetti","penne","rigatoni","fusilli","farfalle","linguine","fettuccine",
-      "ravioli","tortellini","gnocchi","ziti","macaroni","cavatappi","rotini",
-      "bucatini","orecchiette","pappardelle","lasagna","tagliatelle","vermicelli",
-      "angel hair","shells","ditalini","manicotti","capellini","gemelli","mafaldine",
-      "radiatori","wagon wheels","campanelle","strozzapreti","paccheri","anelletti",
-      "bigoli","casarecce","trofie","malloreddus","lumache","fregola","mezzi rigatoni",
-      "spaghettini","cellentani","tubetti","sedani","filini"
-    ],
-    [
-      "basil","oregano","thyme","rosemary","cumin","turmeric","paprika","cinnamon",
-      "nutmeg","clove","cardamom","parsley","dill","sage","tarragon","sumac",
-      "za'atar","bay leaf","fennel","anise","chives","mint","marjoram","caraway",
-      "coriander","ginger","allspice","saffron","vanilla","sesame","mustard seed",
-      "celery seed","fenugreek","star anise","lemongrass","chili powder","cayenne",
-      "garlic powder","onion powder","smoked paprika","herbes de Provence","lovage",
-      "savory","asafoetida","nigella"
-    ],
-    [
-      "France","Germany","Italy","Spain","Portugal","Netherlands","Belgium","Sweden",
-      "Norway","Denmark","Finland","Poland","Austria","Greece","Ireland","Iceland",
-      "Romania","Hungary","Croatia","Serbia","Slovakia","Slovenia","Estonia","Latvia",
-      "Lithuania","Switzerland","Ukraine","Albania","Andorra","Belarus","Bosnia and Herzegovina",
-      "Bulgaria","Cyprus","Czech Republic","Luxembourg","Malta","Moldova","Montenegro",
-      "North Macedonia","San Marino","Kosovo","Liechtenstein","Monaco","Turkey","Vatican City"
-    ],
-    [
-      "alabama","alaska","arizona","arkansas","california","colorado","connecticut",
-      "delaware","florida","georgia","hawaii","idaho","illinois","indiana","iowa",
-      "kansas","kentucky","louisiana","maine","maryland","massachusetts","michigan",
-      "minnesota","mississippi","missouri","montana","nebraska","nevada","new hampshire",
-      "new jersey","new mexico","new york","north carolina","north dakota","ohio",
-      "oklahoma","oregon","pennsylvania","rhode island","south carolina","south dakota",
-      "tennessee","texas","utah","vermont"
-    ],
-    [
-      "New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","San Antonio",
-      "San Diego","Dallas","Austin","Jacksonville","Fort Worth","Columbus","Charlotte",
-      "San Francisco","Indianapolis","Seattle","Denver","Boston","El Paso","Detroit",
-      "Nashville","Portland","Memphis","Oklahoma City","Las Vegas","Louisville","Baltimore",
-      "Milwaukee","Albuquerque","Tucson","Fresno","Sacramento","Kansas City","Mesa",
-      "Atlanta","Omaha","Raleigh","Miami","Oakland","Minneapolis","Tulsa","Cleveland",
-      "Wichita","Arlington"
-    ],
-    [
-      "printer","stapler","notebook","pen","pencil","monitor","keyboard","mouse","desk",
-      "chair","whiteboard","calendar","folder","binder","paper clips","tape","scissors",
-      "highlighter","envelope","sticky notes","scanner","phone","lamp","filing cabinet",
-      "push pins","rubber bands","clipboard","hole punch","label maker","shredder",
-      "desk pad","mail tray","eraser","ruler","extension cord","surge protector",
-      "dry erase marker","bulletin board","ink cartridge","toner","calculator","mug",
-      "paper ream","lanyard","name badge"
-    ],
-    [
-      "Breaking Bad","Stranger Things","The X-Files","Doctor Who","Black Mirror",
-      "Battlestar Galactica","The Twilight Zone","Westworld","Fringe","Lost in Space",
-      "The Expanse","Firefly","Severance","Dark","Foundation","Silo","Andor","Star Trek",
-      "Star Trek: Voyager","Star Trek: Discovery","Star Trek: Picard","The Last of Us",
-      "Raised by Wolves","Orphan Black","Sense8","Heroes","The 100","Torchwood",
-      "Humans","Altered Carbon","Travelers","Devs","Halo","Snowpiercer","Continuum",
-      "Farscape","Eureka","Quantum Leap","Caprica","Alien Nation","Resident Alien",
-      "Upload","Beacon 23","3 Body Problem","The Peripheral"
-    ],
-    [
-      "Jack Kirby","Stan Lee","Steve Ditko","Jim Lee","Frank Miller","Alan Moore",
-      "Neal Adams","Todd McFarlane","John Romita Sr.","John Byrne","Alex Ross",
-      "George Pérez","Brian Bolland","Rob Liefeld","Dave Gibbons","Joe Kubert",
-      "Will Eisner","Art Spiegelman","Chris Claremont","Walt Simonson","Carmine Infantino",
-      "Gil Kane","Mike Mignola","Moebius","Osamu Tezuka","Rumiko Takahashi","Katsuhiro Otomo",
-      "Harvey Kurtzman","Charles Schulz","Bill Watterson","Jim Davis","Al Capp",
-      "Hergé","R. Crumb","Jeff Smith","Lynda Barry","Marjane Satrapi","Alison Bechdel",
-      "Tove Jansson","Posy Simmonds","Adrian Tomine","Daniel Clowes","Jaime Hernandez",
-      "Gilbert Hernandez","Sergio Aragonés"
-    ],
-    [
-      "Tom Hanks","Meryl Streep","Denzel Washington","Cate Blanchett","Leonardo DiCaprio",
-      "Viola Davis","Brad Pitt","Nicole Kidman","Robert De Niro","Emma Stone","Ryan Gosling",
-      "Julia Roberts","Samuel L. Jackson","Sandra Bullock","Christian Bale","Charlize Theron",
-      "Matt Damon","Jodie Foster","Idris Elba","Amy Adams","Harrison Ford","Scarlett Johansson",
-      "Jake Gyllenhaal","Saoirse Ronan","Mahershala Ali","Frances McDormand","Cillian Murphy",
-      "Florence Pugh","Angela Bassett","Benedict Cumberbatch","Rachel Weisz","Colin Farrell",
-      "Margot Robbie","Willem Dafoe","Michelle Yeoh","Keanu Reeves","Jeff Bridges",
-      "Naomi Watts","Ayo Edebiri","Paul Mescal","Carey Mulligan","Pedro Pascal","Zendaya",
-      "Andrew Garfield","Regina King"
-    ],
-    [
-      "The Matrix","Inception","Titanic","Avatar","Gladiator","Interstellar","The Godfather",
-      "Pulp Fiction","The Dark Knight","Forrest Gump","Casablanca","Jaws","Alien","Rocky",
-      "Goodfellas","The Departed","Whiplash","Arrival","Barbie","Oppenheimer","La La Land",
-      "Moonlight","Parasite","The Shawshank Redemption","The Silence of the Lambs",
-      "Jurassic Park","Back to the Future","The Truman Show","No Country for Old Men",
-      "There Will Be Blood","Blade Runner","Top Gun","Toy Story","Finding Nemo",
-      "The Lion King","Die Hard","Get Out","Her","The Social Network","Little Women",
-      "A Few Good Men","The Prestige","Shrek","Memento","The Grand Budapest Hotel"
-    ],
-    [
-      "Imagine","Halo","Firework","Bad Guy","Stay","Uptown Funk","Royals","Poker Face",
-      "Yellow","Wonderwall","Hey Jude","Purple Rain","Rolling in the Deep","Single Ladies",
-      "Shake It Off","Levitating","Viva La Vida","Mr. Brightside","Call Me Maybe",
-      "Watermelon Sugar","Take on Me","Dancing Queen","Bohemian Rhapsody","Toxic",
-      "Since U Been Gone","Teenage Dream","Blinding Lights","Umbrella","Hello",
-      "Dreams","Africa","Creep","Landslide","Jolene","Fast Car","I Will Survive",
-      "Respect","Crazy in Love","Hound Dog","Oops!... I Did It Again","Billie Jean",
-      "Like a Prayer","Material Girl","As It Was","Flowers"
-    ],
-    [
-      "Emma","Olivia","Ava","Sophia","Isabella","Mia","Charlotte","Amelia","Harper",
-      "Evelyn","Abigail","Emily","Ella","Elizabeth","Camila","Luna","Sofia","Avery",
-      "Mila","Aria","Scarlett","Penelope","Layla","Chloe","Victoria","Madison","Eleanor",
-      "Grace","Nora","Riley","Zoey","Hannah","Hazel","Lily","Ellie","Violet","Lillian",
-      "Zoe","Stella","Aurora","Natalie","Emilia","Everly","Leah","Lucy"
-    ],
-    [
-      "Liam","Noah","Oliver","Elijah","James","William","Benjamin","Lucas","Henry",
-      "Theodore","Jack","Levi","Alexander","Jackson","Mateo","Daniel","Michael",
-      "Mason","Sebastian","Ethan","Logan","Owen","Samuel","Jacob","Asher","Aiden",
-      "John","Joseph","Wyatt","David","Leo","Luke","Julian","Hudson","Grayson",
-      "Matthew","Ezra","Gabriel","Carter","Isaac","Jayden","Luca","Anthony","Dylan","Lincoln"
-    ]
-  ];
+function normaliseWord(word) {
+  return word.trim().toLocaleLowerCase();
+}
 
-  function weeklyShuffle(arr, seed) {
-    const clone = arr.slice();
-    let s = seed;
-    for (let i = clone.length - 1; i > 0; i--) {
-      s = (s * 9301 + 49297) % 233280;
-      const j = Math.floor((s / 233280) * (i + 1));
-      [clone[i], clone[j]] = [clone[j], clone[i]];
+function uniqueItems(items) {
+  const seen = new Set();
+  const out = [];
+  items.forEach((item) => {
+    const key = normaliseWord(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
     }
-    return clone;
-  }
+  });
+  return out;
+}
 
-  function getWeeklySeed() {
-    const d = new Date();
-    const start = new Date(Date.UTC(d.getFullYear(), 0, 1));
-    const now = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = Math.floor((now - start) / 86400000) + 1;
-    const week = Math.ceil(dayNum / 7);
-    return d.getFullYear() * 100 + week;
-  }
+function pickItemsForVariant(pool, familySeed, variant) {
+  const rng = mulberry32(hashString(`${familySeed}:${variant}`));
+  const shuffled = shuffleInPlace(uniqueItems(pool), rng);
+  return shuffled.slice(0, CATEGORY_SIZE);
+}
 
-  function generateBoard() {
-    const seed = getWeeklySeed();
-    const poolOrder = weeklyShuffle(CATEGORY_POOLS.map((_, i) => i), seed);
-    const chosenPools = [];
-
-    for (let i = 0; i < BOARD_SIZE; i++) {
-      chosenPools.push(CATEGORY_POOLS[poolOrder[i % poolOrder.length]]);
-    }
-
-    const tiles = [];
-    for (let groupIndex = 0; groupIndex < BOARD_SIZE; groupIndex++) {
-      const items = chosenPools[groupIndex].slice(0, GROUP_SIZE);
-      for (const item of items) {
-        tiles.push({
-          id: makeId(),
-          text: item,
-          group: groupIndex,
-          items: [item],
-          locked: false,
+function generateCategoryDatabase() {
+  const categories = [];
+  const variantsPerFamily = Math.floor(CATEGORY_COUNT / FAMILY_POOLS.length);
+  FAMILY_POOLS.forEach((family, familyIndex) => {
+    for (let variant = 0; variant < variantsPerFamily; variant += 1) {
+      const items = pickItemsForVariant(family.items, family.family, variant);
+      if (items.length === CATEGORY_SIZE) {
+        categories.push({
+          id: `cat-${String(familyIndex).padStart(2, '0')}-${String(variant).padStart(2, '0')}`,
+          family: family.family,
+          title: `${family.family} ${variant + 1}`,
+          items
         });
       }
     }
+  });
+  return categories;
+}
 
-    state.tiles = weeklyShuffle(tiles, seed + 17);
-    state.selected = [];
-  }
+const CATEGORY_DB = generateCategoryDatabase();
 
-  function handleClick(id) {
-    const idx = state.tiles.findIndex(t => t.id === id);
-    if (idx === -1) return;
+function pickWeeklyCategories(count, seedKey) {
+  const rng = mulberry32(hashString(`${seedKey}:weekly`));
+  const indices = Array.from({ length: CATEGORY_DB.length }, (_, i) => i);
+  shuffleInPlace(indices, rng);
+  return indices.slice(0, count).map((i) => structuredClone(CATEGORY_DB[i]));
+}
 
-    const tile = state.tiles[idx];
-    if (tile.locked) return;
-
-    if (state.selected.length === 0) {
-      state.selected = [idx];
-      save();
-      render();
-      return;
-    }
-
-    const firstIdx = state.selected[0];
-
-    if (firstIdx === idx) {
-      state.selected = [];
-      save();
-      render();
-      return;
-    }
-
-    const firstTile = state.tiles[firstIdx];
-    if (!firstTile) {
-      state.selected = [];
-      save();
-      render();
-      return;
-    }
-
-    if (firstTile.group !== tile.group) {
-      const shakeIds = [firstTile.id, tile.id];
-      state.selected = [];
-      render(shakeIds);
-      setTimeout(() => render(), 320);
-      return;
-    }
-
-    merge(firstIdx, idx);
-    state.selected = [];
-    save();
-    render();
-  }
-
-  function merge(i1, i2) {
-    if (i1 === i2) return;
-
-    const t1 = state.tiles[i1];
-    const t2 = state.tiles[i2];
-    if (!t1 || !t2) return;
-    if (t1.group !== t2.group || t1.locked || t2.locked) return;
-
-    const mergedItems = [...new Set([...t1.items, ...t2.items])];
-
-    const mergedTile = {
-      ...t2,
-      items: mergedItems,
-      text: formatPreview(mergedItems),
-      locked: mergedItems.length === GROUP_SIZE,
-    };
-
-    state.tiles[i2] = mergedTile;
-    state.tiles.splice(i1, 1);
-
-    if (mergedTile.locked) {
-      moveGroupToTop(mergedTile.group);
-    }
-  }
-
-  function moveGroupToTop(group) {
-    const groupTiles = state.tiles.filter(t => t.group === group);
-    const others = state.tiles.filter(t => t.group !== group);
-    state.tiles = [...groupTiles, ...others];
-  }
-
-  function formatPreview(items) {
-    if (items.length <= 2) return items.join(", ");
-    return `${items[0]}, ${items[1]}, ... [${items.length}]`;
-  }
-
-  function render(shakeIds = []) {
-    const board = document.querySelector(".board");
-    if (!board) return;
-
-    board.innerHTML = "";
-
-    state.tiles.forEach((tile, idx) => {
-      const div = document.createElement("div");
-      div.className = "tile";
-
-      if (tile.items.length === 1) {
-        div.classList.add("single");
-      } else {
-        div.classList.add("merged");
-      }
-
-      if (tile.locked) {
-        div.classList.add("solved-tile");
-        div.style.background = getSolvedColor(tile.group);
-      }
-
-      if (state.selected.includes(idx)) {
-        div.classList.add("selected");
-      }
-
-      if (shakeIds.includes(tile.id)) {
-        div.classList.add("shake");
-      }
-
-      div.textContent = tile.text;
-
-      if (tile.items.length > 2) {
-        div.classList.add("hoverable");
-        const hover = document.createElement("div");
-        hover.className = "hover-content";
-        hover.textContent = tile.items.join(", ");
-        div.appendChild(hover);
-      }
-
-      div.addEventListener("click", () => handleClick(tile.id));
-      board.appendChild(div);
+function createMegaState(weekKey) {
+  const categories = pickWeeklyCategories(MEGA_PICK_COUNT, weekKey);
+  const tiles = [];
+  categories.forEach((category, catIndex) => {
+    category.items.forEach((item, itemIndex) => {
+      tiles.push({
+        id: `tile-${catIndex}-${itemIndex}`,
+        categoryId: category.id,
+        words: [item],
+        solved: false,
+        selected: false,
+        solvedOrder: null,
+        order: tiles.length
+      });
     });
+  });
+  const rng = mulberry32(hashString(`${weekKey}:mega:tiles`));
+  shuffleInPlace(tiles, rng).forEach((tile, index) => {
+    tile.order = index;
+  });
+  return {
+    weekKey,
+    score: 0,
+    mistakes: 0,
+    done: false,
+    solvedCount: 0,
+    categories,
+    tiles
+  };
+}
+
+const weekInfo = getISOWeekInfo(new Date());
+const megaStorageKey = `connections-mega:${weekInfo.key}`;
+
+function loadState(key, fallbackFactory) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallbackFactory();
+    const parsed = JSON.parse(raw);
+    parsed.solvedCount = parsed.solvedCount || parsed.tiles.filter((tile) => tile.solved).length;
+    parsed.tiles.forEach((tile, index) => {
+      if (typeof tile.order !== 'number') tile.order = index;
+      if (typeof tile.words === 'string') tile.words = tile.words.split(',').map((part) => part.trim()).filter(Boolean);
+    });
+    return parsed;
+  } catch {
+    return fallbackFactory();
+  }
+}
+
+let megaState = loadState(megaStorageKey, () => createMegaState(weekInfo.key));
+let megaSelectionTick = 0;
+
+function saveState() {
+  localStorage.setItem(megaStorageKey, JSON.stringify(megaState));
+}
+
+function megaSelectedTiles() {
+  return megaState.tiles.filter((tile) => tile.selected && !tile.solved);
+}
+
+function clearMegaSelection() {
+  megaState.tiles.forEach((tile) => {
+    tile.selected = false;
+    delete tile.selectedAt;
+  });
+}
+
+function uniqueWords(words) {
+  const seen = new Set();
+  const out = [];
+  words.forEach((word) => {
+    const key = normaliseWord(word);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(word);
+    }
+  });
+  return out;
+}
+
+function formatGroup(words, previewCount = null) {
+  const cleanWords = uniqueWords(words);
+  if (previewCount && cleanWords.length > previewCount) {
+    const shown = cleanWords.slice(0, previewCount).join(', ');
+    return `${shown}, ... [${cleanWords.length}]`;
+  }
+  return cleanWords.join(', ');
+}
+
+function getSolvedColour(order) {
+  return SOLVED_COLOURS[order % SOLVED_COLOURS.length];
+}
+
+function handleMegaTileClick(id) {
+  const tile = megaState.tiles.find((entry) => entry.id === id);
+  if (!tile || tile.solved) return;
+
+  const selected = megaSelectedTiles();
+  if (tile.selected) {
+    tile.selected = false;
+    delete tile.selectedAt;
+    renderMega();
+    return;
   }
 
-  function getSolvedColor(group) {
-    const colors = ["var(--yellow)", "var(--green)", "var(--blue)", "var(--purple)"];
-    return colors[group % colors.length];
+  if (selected.length >= 2) {
+    clearMegaSelection();
   }
 
-  function save() {
-    try {
-      localStorage.setItem(WEEK_KEY, JSON.stringify(state));
-    } catch (e) {}
+  tile.selected = true;
+  tile.selectedAt = ++megaSelectionTick;
+
+  const nowSelected = megaSelectedTiles().sort((a, b) => (a.selectedAt || 0) - (b.selectedAt || 0));
+  if (nowSelected.length !== 2) {
+    renderMega();
+    return;
   }
-});
+
+  const [firstTile, secondTile] = nowSelected;
+  if (firstTile.categoryId === secondTile.categoryId) {
+    const firstIndex = megaState.tiles.findIndex((entry) => entry.id === firstTile.id);
+    const secondIndex = megaState.tiles.findIndex((entry) => entry.id === secondTile.id);
+    const mergedWords = uniqueWords([...firstTile.words, ...secondTile.words]);
+    const solved = mergedWords.length === CATEGORY_SIZE;
+    const mergedTile = {
+      ...secondTile,
+      words: mergedWords,
+      selected: false,
+      solved,
+      solvedOrder: solved ? megaState.solvedCount : null,
+      order: secondTile.order
+    };
+    delete mergedTile.selectedAt;
+
+    megaState.tiles = megaState.tiles.filter((entry) => entry.id !== firstTile.id && entry.id !== secondTile.id);
+    const insertIndex = firstIndex < secondIndex ? secondIndex - 1 : secondIndex;
+    megaState.tiles.splice(insertIndex, 0, mergedTile);
+
+    if (solved) {
+      megaState.solvedCount += 1;
+    }
+
+    megaState.score += 1;
+    megaState.done = megaState.tiles.every((entry) => entry.solved);
+    saveState();
+    renderMega();
+    return;
+  }
+
+  [firstTile, secondTile].forEach((entry) => {
+    entry.bad = true;
+    entry.selected = false;
+    delete entry.selectedAt;
+  });
+  megaState.mistakes += 1;
+  saveState();
+  renderMega();
+  setTimeout(() => {
+    megaState.tiles.forEach((entry) => {
+      delete entry.bad;
+    });
+    renderMega();
+  }, 300);
+}
+
+function tilesForDisplay() {
+  return megaState.tiles.slice().sort((a, b) => {
+    if (a.solved && b.solved) return (a.solvedOrder ?? 0) - (b.solvedOrder ?? 0);
+    if (a.solved) return -1;
+    if (b.solved) return 1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+}
+
+function renderMega() {
+  const board = document.getElementById('megaBoard');
+  const status = document.getElementById('megaStatus');
+
+  status.innerHTML = `
+    <span class="status-pill">Week ${weekInfo.week}, ${weekInfo.year}</span>
+    <span class="status-pill">Moves ${megaState.score}</span>
+    <span class="status-pill">Mistakes ${megaState.mistakes}</span>
+  `;
+
+  board.innerHTML = '';
+  tilesForDisplay().forEach((tile) => {
+    const el = document.createElement('button');
+    const isHoverable = tile.words.length > 2;
+    el.type = 'button';
+    el.className = `tile ${tile.words.length === 1 ? 'single' : 'merged'} ${tile.solved ? 'solved-tile' : ''} ${tile.selected ? 'selected' : ''} ${tile.bad ? 'bad' : ''} ${isHoverable ? 'hoverable' : ''}`;
+    el.disabled = tile.solved;
+    if (tile.solved) {
+      el.style.background = getSolvedColour(tile.solvedOrder || 0);
+      el.style.borderColor = 'rgba(0,0,0,.08)';
+      el.style.cursor = 'default';
+    }
+
+    const preview = tile.words.length === 1 ? tile.words[0] : formatGroup(tile.words, 2);
+    const popup = isHoverable ? `<span class="hover-content">${formatGroup(tile.words)}</span>` : '';
+
+    el.innerHTML = `<span>${preview}</span>${popup}`;
+    if (!tile.solved) {
+      el.addEventListener('click', () => handleMegaTileClick(tile.id));
+    }
+    board.appendChild(el);
+  });
+}
+
+renderMega();
