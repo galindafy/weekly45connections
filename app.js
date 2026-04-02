@@ -209,8 +209,12 @@ function uniqueItems(builder, variant) {
   const items = [];
   const used = new Set();
   let i = 0;
-  while (items.length < CATEGORY_SIZE && i < 500) {
-    const item = builder(variant, i).replace(/\s+/g, ' ').trim();
+  while (items.length < CATEGORY_SIZE && i < 1000) {
+    let item = builder(variant, i).replace(/\s+/g, ' ').trim();
+    if (used.has(item)) {
+      const suffix = `${lexicons.adjectives[(variant * 19 + i * 7) % lexicons.adjectives.length]} ${String.fromCharCode(65 + (i % 26))}`;
+      item = `${item} ${suffix}`;
+    }
     if (!used.has(item)) {
       used.add(item);
       items.push(item);
@@ -312,6 +316,7 @@ function loadState(key, fallbackFactory) {
 }
 
 let megaState = loadState(megaStorageKey, () => createMegaState(weekInfo.key));
+let megaSelectionTick = 0;
 
 function saveStates() {
   localStorage.setItem(megaStorageKey, JSON.stringify(megaState));
@@ -331,33 +336,40 @@ function handleMegaTileClick(id) {
   const selected = megaSelectedTiles();
   if (tile.selected) {
     tile.selected = false;
+    delete tile.selectedAt;
     renderMega();
     return;
   }
-  if (selected.length >= 2) clearMegaSelection();
+  if (selected.length >= 2) {
+    clearMegaSelection();
+    megaState.tiles.forEach(t => { delete t.selectedAt; });
+  }
   tile.selected = true;
-  const nowSelected = megaSelectedTiles();
+  tile.selectedAt = ++megaSelectionTick;
+  const nowSelected = megaSelectedTiles().sort((x, y) => (x.selectedAt || 0) - (y.selectedAt || 0));
   if (nowSelected.length === 2) {
-    const [a, b] = nowSelected;
-    if (a.categoryId === b.categoryId) {
-      const originalIndexA = megaState.tiles.findIndex(t => t.id === a.id);
-      const originalIndexB = megaState.tiles.findIndex(t => t.id === b.id);
-      const targetIndex = originalIndexA < originalIndexB ? originalIndexB - 1 : originalIndexB;
-      megaState.tiles = megaState.tiles.filter(t => t.id !== a.id && t.id !== b.id);
+    const [firstTile, secondTile] = nowSelected;
+    if (firstTile.categoryId === secondTile.categoryId) {
+      const originalIndexA = megaState.tiles.findIndex(t => t.id === firstTile.id);
+      const originalIndexB = megaState.tiles.findIndex(t => t.id === secondTile.id);
+      const secondTileIndexAfterRemoval = originalIndexA < originalIndexB ? originalIndexB - 1 : originalIndexB;
+      megaState.tiles = megaState.tiles.filter(t => t.id !== firstTile.id && t.id !== secondTile.id);
       const combined = {
-        ...b,
-        words: [...a.words, ...b.words],
+        ...secondTile,
+        words: [...firstTile.words, ...secondTile.words],
         selected: false,
-        solved: a.words.length + b.words.length === CATEGORY_SIZE
+        solved: firstTile.words.length + secondTile.words.length === CATEGORY_SIZE
       };
-      megaState.tiles.splice(targetIndex > megaState.tiles.length ? megaState.tiles.length : targetIndex, 0, combined);
+      delete combined.selectedAt;
+      megaState.tiles.splice(secondTileIndexAfterRemoval, 0, combined);
       megaState.score += 1;
       megaState.done = megaState.tiles.filter(t => !t.solved).length === 0;
     } else {
       megaState.mistakes += 1;
-      [a, b].forEach(t => {
+      [firstTile, secondTile].forEach(t => {
         t.bad = true;
         t.selected = false;
+        delete t.selectedAt;
       });
       setTimeout(() => {
         megaState.tiles.forEach(t => { delete t.bad; });
