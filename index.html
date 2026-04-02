@@ -1,34 +1,24 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en-CA">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Connections Weekly 45x45</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app">
-    <div class="topbar">
-      <h1>Connections</h1>
-      <div class="subtitle">Weekly 45x45</div>
-    </div>
+    <header class="topbar">
+      <h1>Connections<br>Weekly 45x45</h1>
+      <p class="subtitle">A weekly 45×45 merge wall.</p>
+    </header>
 
-    <div class="status" aria-live="polite">
-      <span id="currentWeek">Week —</span>
-      <span>•</span>
-      <span id="mistakes">Mistakes: 0</span>
-      <span>•</span>
-      <span id="points">Points: 0</span>
-    </div>
-
-    <div class="controls">
-      <button id="shuffleBtn" type="button">Shuffle</button>
-    </div>
-
-    <div class="board"></div>
+    <section id="megaView" class="view active">
+      <div class="status" id="megaStatus"></div>
+      <div id="megaBoard" class="board"></div>
+    </section>
   </div>
 
-  <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

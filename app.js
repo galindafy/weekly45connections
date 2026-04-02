@@ -1,347 +1,267 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const BOARD_SIZE = 45;
+(() => {
   const GROUP_SIZE = 45;
-  const STORAGE_KEY = getWeekKey();
+  const BOARD_GROUPS = 45;
+  const STORAGE_PREFIX = 'connections45:';
 
-  const boardEl = document.querySelector(".board");
-  const currentWeekEl = document.getElementById("currentWeek");
-  const mistakesEl = document.getElementById("mistakes");
-  const pointsEl = document.getElementById("points");
-  const shuffleBtn = document.getElementById("shuffleBtn");
+  const weekInfo = getISOWeekInfo(new Date());
+  const storageKey = `${STORAGE_PREFIX}${weekInfo.key}`;
 
-  let state = {
-    tiles: [],
-    selected: [],
-    mistakes: 0,
-    points: 0,
-  };
-
-  let categoryBank = [];
-
-  try {
-    if (!window.buildCategoryBank || typeof window.buildCategoryBank !== "function") {
-      throw new Error("Category bank failed to load.");
-    }
-    categoryBank = window.buildCategoryBank();
-  } catch (err) {
-    renderFatal(`Data error: ${err.message}`);
-    return;
+  let state = loadState();
+  if (!state) {
+    state = createWeeklyState();
+    saveState();
   }
 
-  if (!boardEl) {
-    return;
-  }
-
-  shuffleBtn?.addEventListener("click", shuffleBoard);
-
-  try {
-    init();
-  } catch (err) {
-    console.error(err);
-    renderFatal(`Board error: ${err.message}`);
-  }
-
-  function init() {
-    updateHeader();
-
-    const saved = load();
-    if (saved && isValidState(saved) && boardHasNoDuplicateSingles(saved.tiles)) {
-      state = {
-        tiles: saved.tiles,
-        selected: Array.isArray(saved.selected) ? saved.selected : [],
-        mistakes: Number.isFinite(saved.mistakes) ? saved.mistakes : 0,
-        points: Number.isFinite(saved.points) ? saved.points : computePoints(saved.tiles),
-      };
+  const shuffleBtn = document.getElementById('megaShuffleBtn');
+  if (shuffleBtn) {
+    shuffleBtn.addEventListener('click', () => {
+      shuffleOpenTiles();
+      saveState();
       render();
-      return;
-    }
-
-    newWeeklyBoard();
-    save();
-    render();
+    });
   }
 
-  function newWeeklyBoard() {
-    const weeklyCategories = buildWeeklyCategories();
-    const rng = seededRandom(getWeekSeed() + 101);
+  render();
+
+  function getISOWeekInfo(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return {
+      year: d.getUTCFullYear(),
+      week,
+      key: `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+    };
+  }
+
+  function hashString(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i += 1) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function mulberry32(seed) {
+    return function () {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function shuffleInPlace(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function makeTileId(groupIndex, itemIndex) {
+    return `tile-${groupIndex}-${itemIndex}`;
+  }
+
+  function createWeeklyState() {
+    const categories = pickWeeklyCategories();
     const tiles = [];
 
-    weeklyCategories.forEach((category, groupIndex) => {
-      category.items.forEach((item) => {
+    categories.forEach((category, groupIndex) => {
+      category.items.forEach((item, itemIndex) => {
         tiles.push({
-          id: makeId(),
-          text: item,
-          items: [item],
-          group: groupIndex,
-          locked: false,
+          id: makeTileId(groupIndex, itemIndex),
+          categoryId: category.id,
+          words: [item],
+          solved: false,
+          selected: false
         });
       });
     });
 
-    state.tiles = shuffle(tiles, rng);
-    state.selected = [];
-    state.mistakes = 0;
-    state.points = 0;
+    const rng = mulberry32(hashString(`${weekInfo.key}:tiles`));
+    shuffleInPlace(tiles, rng);
+
+    return {
+      weekKey: weekInfo.key,
+      week: weekInfo.week,
+      year: weekInfo.year,
+      score: 0,
+      mistakes: 0,
+      categories,
+      tiles
+    };
   }
 
-  function buildWeeklyCategories() {
-    const rng = seededRandom(getWeekSeed());
-    const sorted = [...categoryBank].sort((a, b) => (a.priority || 99) - (b.priority || 99));
-    const priority1 = shuffle(sorted.filter((c) => c.priority === 1), rng);
-    const priority2 = shuffle(sorted.filter((c) => c.priority === 2), rng);
-    const priority3 = shuffle(sorted.filter((c) => c.priority === 3), rng);
-    const pool = [...priority1, ...priority2, ...priority3];
+  function pickWeeklyCategories() {
+    const all = Array.isArray(window.CATEGORY_BANK) ? window.CATEGORY_BANK : [];
+    const rng = mulberry32(hashString(`${weekInfo.key}:categories`));
+    const candidates = all.map(cat => ({ ...cat, items: cat.items.slice() }));
+    shuffleInPlace(candidates, rng);
 
     const chosen = [];
     const usedItems = new Set();
 
-    for (const category of pool) {
-      if (chosen.length >= BOARD_SIZE) break;
-      if (!categoryFits(category, usedItems)) continue;
+    for (const category of candidates) {
+      if (chosen.length >= BOARD_GROUPS) break;
+      if (!Array.isArray(category.items) || category.items.length !== GROUP_SIZE) continue;
+      if (hasInternalDuplicates(category.items)) continue;
+      if (category.items.some(item => usedItems.has(item))) continue;
+
       chosen.push(category);
-      category.items.forEach((item) => usedItems.add(item));
+      category.items.forEach(item => usedItems.add(item));
     }
 
-    if (chosen.length < BOARD_SIZE) {
-      throw new Error("Not enough clean categories for this weekly board.");
+    if (chosen.length < BOARD_GROUPS) {
+      throw new Error('Not enough non-overlapping categories to build the board.');
     }
 
     return chosen;
   }
 
-  function categoryFits(category, usedItems) {
-    if (!category || !Array.isArray(category.items) || category.items.length !== GROUP_SIZE) {
-      return false;
-    }
-    for (const item of category.items) {
-      if (usedItems.has(item)) return false;
-    }
-    return true;
+  function hasInternalDuplicates(items) {
+    return new Set(items).size !== items.length;
   }
 
-  function handleClick(id) {
-    const idx = state.tiles.findIndex((tile) => tile.id === id);
-    if (idx === -1) return;
-
-    const tile = state.tiles[idx];
-    if (!tile || tile.locked) return;
-
-    if (state.selected.length === 0) {
-      state.selected = [idx];
-      save();
-      render();
-      return;
-    }
-
-    const firstIdx = state.selected[0];
-    if (firstIdx === idx) {
-      state.selected = [];
-      save();
-      render();
-      return;
-    }
-
-    const firstTile = state.tiles[firstIdx];
-    if (!firstTile || firstTile.locked) {
-      state.selected = [];
-      save();
-      render();
-      return;
-    }
-
-    if (firstTile.group !== tile.group) {
-      const shakeIds = [firstTile.id, tile.id];
-      state.mistakes += 1;
-      state.selected = [];
-      save();
-      render(shakeIds);
-      setTimeout(() => render(), 320);
-      return;
-    }
-
-    mergeTiles(firstIdx, idx);
-    state.selected = [];
-    state.points = computePoints(state.tiles);
-    save();
-    render();
-  }
-
-  function mergeTiles(i1, i2) {
-    if (i1 === i2) return;
-
-    const t1 = state.tiles[i1];
-    const t2 = state.tiles[i2];
-    if (!t1 || !t2) return;
-    if (t1.group !== t2.group || t1.locked || t2.locked) return;
-
-    const mergedItems = uniquePreserveOrder([...t1.items, ...t2.items]);
-    const mergedTile = {
-      ...t2,
-      items: mergedItems,
-      text: formatPreview(mergedItems),
-      locked: mergedItems.length === GROUP_SIZE,
-    };
-
-    state.tiles[i2] = mergedTile;
-    state.tiles.splice(i1, 1);
-
-    if (mergedTile.locked) {
-      moveSolvedGroupToTop(mergedTile.group);
-    }
-  }
-
-  function shuffleBoard() {
-    const solved = state.tiles.filter((tile) => tile.locked);
-    const open = state.tiles.filter((tile) => !tile.locked);
-    state.tiles = [...solved, ...shuffle(open)];
-    state.selected = [];
-    save();
-    render();
-  }
-
-  function moveSolvedGroupToTop(group) {
-    const groupTiles = state.tiles.filter((tile) => tile.group === group);
-    const others = state.tiles.filter((tile) => tile.group !== group);
-    state.tiles = [...groupTiles, ...others];
-  }
-
-  function render(shakeIds = []) {
-    boardEl.innerHTML = "";
-    updateHeader();
-
-    state.tiles.forEach((tile, idx) => {
-      const div = document.createElement("div");
-      div.className = "tile";
-      div.classList.add(tile.items.length === 1 ? "single" : "merged");
-
-      if (tile.locked) {
-        div.classList.add("solved-tile");
-        div.style.background = getSolvedColor(tile.group);
-      }
-
-      if (state.selected.includes(idx)) {
-        div.classList.add("selected");
-      }
-
-      if (shakeIds.includes(tile.id)) {
-        div.classList.add("shake");
-      }
-
-      div.textContent = tile.text;
-
-      if (tile.items.length > 2) {
-        div.classList.add("hoverable");
-        const hover = document.createElement("div");
-        hover.className = "hover-content";
-        hover.textContent = tile.items.join(", ");
-        div.appendChild(hover);
-      }
-
-      div.addEventListener("click", () => handleClick(tile.id));
-      boardEl.appendChild(div);
-    });
-  }
-
-  function updateHeader() {
-    const weekInfo = getWeekInfo();
-    if (currentWeekEl) currentWeekEl.textContent = `Current week: ${weekInfo.label}`;
-    if (mistakesEl) mistakesEl.textContent = `Mistakes: ${state.mistakes}`;
-    if (pointsEl) pointsEl.textContent = `Points: ${state.points}`;
-  }
-
-  function renderFatal(message) {
-    updateHeader();
-    boardEl.innerHTML = "";
-    const div = document.createElement("div");
-    div.className = "tile";
-    div.style.gridColumn = "1 / -1";
-    div.style.cursor = "default";
-    div.textContent = message;
-    boardEl.appendChild(div);
-  }
-
-  function formatPreview(items) {
-    if (items.length <= 2) return items.join(", ");
-    return `${items[0]}, ${items[1]}, ... [${items.length}]`;
-  }
-
-  function computePoints(tiles) {
-    return tiles.reduce((sum, tile) => sum + Math.max(0, tile.items.length - 1), 0);
-  }
-
-  function getSolvedColor(group) {
-    const colors = ["var(--yellow)", "var(--green)", "var(--blue)", "var(--purple)"];
-    return colors[group % colors.length];
-  }
-
-  function save() {
+  function loadState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (_) {}
-  }
-
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (_) {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!isValidState(parsed)) return null;
+      return parsed;
+    } catch {
       return null;
     }
   }
 
   function isValidState(value) {
-    return Boolean(
-      value &&
-      Array.isArray(value.tiles) &&
-      Array.isArray(value.selected) &&
-      value.tiles.every(
-        (tile) => tile && typeof tile.id === "string" && typeof tile.text === "string" && typeof tile.group === "number" && Array.isArray(tile.items)
-      )
-    );
-  }
+    if (!value || !Array.isArray(value.tiles) || !Array.isArray(value.categories)) return false;
+    if (typeof value.week !== 'number' || typeof value.year !== 'number') return false;
+    const singleWords = new Set();
 
-  function boardHasNoDuplicateSingles(tiles) {
-    const seen = new Set();
-    for (const tile of tiles) {
-      if (!tile || !Array.isArray(tile.items)) return false;
-      if (tile.items.length === 1) {
-        if (seen.has(tile.items[0])) return false;
-        seen.add(tile.items[0]);
+    for (const tile of value.tiles) {
+      if (!tile || typeof tile.id !== 'string' || typeof tile.categoryId !== 'string') return false;
+      if (!Array.isArray(tile.words) || tile.words.length < 1 || tile.words.length > GROUP_SIZE) return false;
+      if (tile.words.some(word => typeof word !== 'string' || /\s\d+$/.test(word))) return false;
+      if (tile.words.length === 1) {
+        const word = tile.words[0];
+        if (singleWords.has(word)) return false;
+        singleWords.add(word);
       }
     }
+
     return true;
   }
 
-  function getWeekInfo() {
-    const d = new Date();
-    const start = new Date(Date.UTC(d.getFullYear(), 0, 1));
-    const now = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = Math.floor((now - start) / 86400000) + 1;
-    const week = Math.ceil(dayNum / 7);
-    return { year: d.getFullYear(), week, label: `${d.getFullYear()} W${String(week).padStart(2, "0")}` };
+  function saveState() {
+    localStorage.setItem(storageKey, JSON.stringify(state));
   }
 
-  function getWeekSeed() {
-    const info = getWeekInfo();
-    return info.year * 100 + info.week;
+  function selectedTiles() {
+    return state.tiles.filter(tile => tile.selected && !tile.solved);
   }
 
-  function getWeekKey() {
-    const info = getWeekInfo();
-    return `connections_weekly_45x45_${info.year}_${info.week}`;
+  function clearSelection() {
+    state.tiles.forEach(tile => {
+      tile.selected = false;
+      delete tile.selectedAt;
+    });
   }
 
-  function makeId() {
-    if (window.crypto && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
+  function handleTileClick(id) {
+    const tile = state.tiles.find(t => t.id === id);
+    if (!tile || tile.solved) return;
+
+    const currentlySelected = selectedTiles();
+
+    if (tile.selected) {
+      tile.selected = false;
+      delete tile.selectedAt;
+      saveState();
+      render();
+      return;
     }
-    return `id_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    if (currentlySelected.length >= 2) {
+      clearSelection();
+    }
+
+    tile.selected = true;
+    tile.selectedAt = Date.now() + Math.random();
+
+    const nowSelected = selectedTiles().sort((a, b) => (a.selectedAt || 0) - (b.selectedAt || 0));
+    if (nowSelected.length !== 2) {
+      saveState();
+      render();
+      return;
+    }
+
+    const [firstTile, secondTile] = nowSelected;
+
+    if (firstTile.categoryId === secondTile.categoryId) {
+      mergeTiles(firstTile.id, secondTile.id);
+      state.score += 1;
+      saveState();
+      render();
+      return;
+    }
+
+    state.mistakes += 1;
+    firstTile.bad = true;
+    secondTile.bad = true;
+    firstTile.selected = false;
+    secondTile.selected = false;
+    delete firstTile.selectedAt;
+    delete secondTile.selectedAt;
+    saveState();
+    render();
+    setTimeout(() => {
+      state.tiles.forEach(t => delete t.bad);
+      render();
+    }, 280);
   }
 
-  function uniquePreserveOrder(arr) {
+  function mergeTiles(firstId, secondId) {
+    const firstIndex = state.tiles.findIndex(t => t.id === firstId);
+    const secondIndex = state.tiles.findIndex(t => t.id === secondId);
+    if (firstIndex === -1 || secondIndex === -1) return;
+
+    const firstTile = state.tiles[firstIndex];
+    const secondTile = state.tiles[secondIndex];
+    const mergedWords = uniquePreserveOrder([...firstTile.words, ...secondTile.words]);
+
+    const mergedTile = {
+      ...secondTile,
+      words: mergedWords,
+      selected: false,
+      solved: mergedWords.length === GROUP_SIZE
+    };
+    delete mergedTile.selectedAt;
+    delete mergedTile.bad;
+
+    state.tiles = state.tiles.filter(t => t.id !== firstId && t.id !== secondId);
+    const insertIndex = firstIndex < secondIndex ? secondIndex - 1 : secondIndex;
+    state.tiles.splice(insertIndex, 0, mergedTile);
+
+    if (mergedTile.solved) {
+      moveSolvedGroupToTop(mergedTile.categoryId);
+    }
+  }
+
+  function moveSolvedGroupToTop(categoryId) {
+    const solved = state.tiles.filter(tile => tile.categoryId === categoryId);
+    const others = state.tiles.filter(tile => tile.categoryId !== categoryId);
+    state.tiles = [...solved, ...others];
+  }
+
+  function uniquePreserveOrder(items) {
     const seen = new Set();
     const out = [];
-    for (const item of arr) {
+    for (const item of items) {
       if (!seen.has(item)) {
         seen.add(item);
         out.push(item);
@@ -350,21 +270,62 @@ document.addEventListener("DOMContentLoaded", () => {
     return out;
   }
 
-  function shuffle(arr, rng = Math.random) {
-    const out = [...arr];
-    for (let i = out.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(rng() * (i + 1));
-      [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out;
+  function shuffleOpenTiles() {
+    clearSelection();
+    const solved = state.tiles.filter(tile => tile.solved);
+    const open = state.tiles.filter(tile => !tile.solved);
+    const rng = mulberry32(hashString(`${storageKey}:shuffle:${state.score}:${state.mistakes}:${open.length}`));
+    shuffleInPlace(open, rng);
+    state.tiles = [...solved, ...open];
   }
 
-  function seededRandom(seed) {
-    let s = seed % 2147483647;
-    if (s <= 0) s += 2147483646;
-    return function () {
-      s = (s * 16807) % 2147483647;
-      return (s - 1) / 2147483646;
-    };
+  function formatGroup(words, previewCount = null) {
+    if (previewCount && words.length > previewCount) {
+      return `${words.slice(0, previewCount).join(', ')}, ... [${words.length}]`;
+    }
+    return words.join(', ');
   }
-});
+
+  function render() {
+    renderStatus();
+    renderBoard();
+  }
+
+  function renderStatus() {
+    const status = document.getElementById('megaStatus');
+    if (!status) return;
+    status.innerHTML = [
+      `<span class="status-pill">Week ${state.week}, ${state.year}</span>`,
+      `<span class="status-pill">Score ${state.score}</span>`,
+      `<span class="status-pill">Mistakes ${state.mistakes}</span>`
+    ].join('');
+  }
+
+  function renderBoard() {
+    const board = document.getElementById('megaBoard');
+    if (!board) return;
+
+    board.innerHTML = '';
+
+    state.tiles.forEach(tile => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = `tile ${tile.words.length === 1 ? 'single' : 'merged'} ${tile.solved ? 'solved-tile' : ''} ${tile.selected ? 'selected' : ''} ${tile.bad ? 'bad' : ''} ${tile.words.length > 2 ? 'hoverable' : ''}`;
+
+      const preview = tile.words.length === 1 ? tile.words[0] : formatGroup(tile.words, 2);
+      const popup = tile.words.length > 2 ? `<span class="hover-content">${escapeHtml(formatGroup(tile.words))}</span>` : '';
+      el.innerHTML = `<span>${escapeHtml(preview)}</span>${popup}`;
+      el.addEventListener('click', () => handleTileClick(tile.id));
+      board.appendChild(el);
+    });
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+})();
