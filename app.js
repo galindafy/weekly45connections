@@ -300,7 +300,6 @@ function createMiniState(weekKey) {
 
 const weekInfo = getISOWeekInfo(new Date());
 const megaStorageKey = `connections-mega:${weekInfo.key}`;
-const miniStorageKey = `connections-mini:${weekInfo.key}`;
 
 function loadState(key, fallbackFactory) {
   try {
@@ -313,26 +312,9 @@ function loadState(key, fallbackFactory) {
 }
 
 let megaState = loadState(megaStorageKey, () => createMegaState(weekInfo.key));
-let miniState = loadState(miniStorageKey, () => createMiniState(weekInfo.key));
-let currentMode = 'mini';
 
 function saveStates() {
   localStorage.setItem(megaStorageKey, JSON.stringify(megaState));
-  localStorage.setItem(miniStorageKey, JSON.stringify(miniState));
-}
-
-function resetWeek() {
-  megaState = createMegaState(weekInfo.key);
-  miniState = createMiniState(weekInfo.key);
-  saveStates();
-  renderMini();
-  renderMega();
-}
-
-function sortMegaTilesLeftward(tiles) {
-  const active = tiles.filter(tile => !tile.solved);
-  const solved = tiles.filter(tile => tile.solved);
-  return [...active, ...solved];
 }
 
 function megaSelectedTiles() {
@@ -341,10 +323,6 @@ function megaSelectedTiles() {
 
 function clearMegaSelection() {
   megaState.tiles.forEach(tile => { tile.selected = false; });
-}
-
-function clearMiniSelection() {
-  miniState.tiles.forEach(tile => { tile.selected = false; });
 }
 
 function handleMegaTileClick(id) {
@@ -362,19 +340,18 @@ function handleMegaTileClick(id) {
   if (nowSelected.length === 2) {
     const [a, b] = nowSelected;
     if (a.categoryId === b.categoryId) {
+      const originalIndexA = megaState.tiles.findIndex(t => t.id === a.id);
+      const originalIndexB = megaState.tiles.findIndex(t => t.id === b.id);
+      const targetIndex = originalIndexA < originalIndexB ? originalIndexB - 1 : originalIndexB;
+      megaState.tiles = megaState.tiles.filter(t => t.id !== a.id && t.id !== b.id);
       const combined = {
         ...b,
         words: [...a.words, ...b.words],
         selected: false,
         solved: a.words.length + b.words.length === CATEGORY_SIZE
       };
-      megaState.tiles = megaState.tiles.filter(t => t.id !== a.id && t.id !== b.id);
-      megaState.tiles.unshift(combined);
+      megaState.tiles.splice(targetIndex > megaState.tiles.length ? megaState.tiles.length : targetIndex, 0, combined);
       megaState.score += 1;
-      if (combined.solved) {
-        megaState.tiles = megaState.tiles.map(t => t.id === combined.id ? { ...t, solved: true } : t);
-      }
-      megaState.tiles = sortMegaTilesLeftward(megaState.tiles);
       megaState.done = megaState.tiles.filter(t => !t.solved).length === 0;
     } else {
       megaState.mistakes += 1;
@@ -414,130 +391,4 @@ function renderMega() {
   });
 }
 
-function handleMiniTileClick(id) {
-  const tile = miniState.tiles.find(t => t.id === id);
-  if (!tile || tile.solved || miniState.done) return;
-  tile.selected = !tile.selected;
-  const selected = miniState.tiles.filter(t => t.selected && !t.solved);
-  if (selected.length > 4) {
-    selected[0].selected = false;
-  }
-  renderMini();
-}
-
-function solveMiniGroup(categoryId) {
-  const category = miniState.categories.find(c => c.id === categoryId);
-  miniState.tiles.forEach(tile => {
-    if (tile.categoryId === categoryId) {
-      tile.solved = true;
-      tile.selected = false;
-    }
-  });
-  miniState.solvedOrder.push(category.id);
-  const unsolvedCategories = miniState.categories.filter(c => !miniState.solvedOrder.includes(c.id));
-  if (miniState.solvedOrder.length === MINI_PICK_COUNT || miniState.mistakesLeft <= 0) {
-    miniState.done = true;
-    unsolvedCategories.forEach(cat => solveMiniReveal(cat.id));
-  }
-  saveStates();
-}
-
-function solveMiniReveal(categoryId) {
-  miniState.tiles.forEach(tile => {
-    if (tile.categoryId === categoryId) {
-      tile.solved = true;
-      tile.selected = false;
-    }
-  });
-}
-
-function submitMiniSelection() {
-  if (miniState.done) return;
-  const selected = miniState.tiles.filter(t => t.selected && !t.solved);
-  if (selected.length !== 4) return;
-  const catId = selected[0].categoryId;
-  const isMatch = selected.every(t => t.categoryId === catId);
-  if (isMatch) {
-    solveMiniGroup(catId);
-  } else {
-    miniState.mistakesLeft -= 1;
-    if (miniState.mistakesLeft <= 0) {
-      miniState.done = true;
-      miniState.categories.forEach(cat => solveMiniReveal(cat.id));
-    }
-    selected.forEach(tile => { tile.selected = false; });
-    saveStates();
-  }
-  renderMini();
-}
-
-function renderMini() {
-  const board = document.getElementById('miniBoard');
-  const solved = document.getElementById('miniSolved');
-  const status = document.getElementById('miniStatus');
-  status.innerHTML = `
-    <span class="status-pill">Week ${weekInfo.week}, ${weekInfo.year}</span>
-    <span class="status-pill">Mistakes left ${miniState.mistakesLeft}</span>
-    <span class="status-pill">Solved ${miniState.solvedOrder.length} / ${MINI_PICK_COUNT}</span>
-  `;
-  solved.innerHTML = '';
-  miniState.solvedOrder.forEach((categoryId) => {
-    const category = miniState.categories.find(c => c.id === categoryId);
-    const block = document.createElement('div');
-    block.className = 'solved-group';
-    block.style.background = category.difficulty.colour;
-    block.innerHTML = `<strong>${category.title}</strong>${category.items.slice(0, 4).join(', ')}`;
-    solved.appendChild(block);
-  });
-  if (miniState.done && miniState.solvedOrder.length < MINI_PICK_COUNT) {
-    miniState.categories
-      .filter(c => !miniState.solvedOrder.includes(c.id))
-      .forEach(category => {
-        const block = document.createElement('div');
-        block.className = 'solved-group';
-        block.style.background = category.difficulty.colour;
-        block.innerHTML = `<strong>${category.title}</strong>${category.items.slice(0, 4).join(', ')}`;
-        solved.appendChild(block);
-      });
-  }
-  board.innerHTML = '';
-  miniState.tiles
-    .filter(tile => !tile.solved)
-    .forEach(tile => {
-      const el = document.createElement('button');
-      el.type = 'button';
-      el.className = `mini-tile ${tile.selected ? 'selected' : ''}`;
-      el.textContent = tile.text;
-      el.addEventListener('click', () => handleMiniTileClick(tile.id));
-      board.appendChild(el);
-    });
-}
-
-function shuffleMini() {
-  const unsolved = miniState.tiles.filter(t => !t.solved);
-  shuffleInPlace(unsolved, mulberry32(hashString(`${Date.now()}:${Math.random()}`)));
-  const solved = miniState.tiles.filter(t => t.solved);
-  miniState.tiles = [...unsolved, ...solved];
-  saveStates();
-  renderMini();
-}
-
-function switchMode(mode) {
-  currentMode = mode;
-  document.getElementById('miniView').classList.toggle('active', mode === 'mini');
-  document.getElementById('megaView').classList.toggle('active', mode === 'mega');
-  document.getElementById('miniModeBtn').classList.toggle('active', mode === 'mini');
-  document.getElementById('megaModeBtn').classList.toggle('active', mode === 'mega');
-}
-
-document.getElementById('miniModeBtn').addEventListener('click', () => switchMode('mini'));
-document.getElementById('megaModeBtn').addEventListener('click', () => switchMode('mega'));
-document.getElementById('resetWeekBtn').addEventListener('click', resetWeek);
-document.getElementById('miniShuffleBtn').addEventListener('click', shuffleMini);
-document.getElementById('miniDeselectBtn').addEventListener('click', () => { clearMiniSelection(); saveStates(); renderMini(); });
-document.getElementById('miniSubmitBtn').addEventListener('click', submitMiniSelection);
-document.getElementById('megaDeselectBtn').addEventListener('click', () => { clearMegaSelection(); saveStates(); renderMega(); });
-document.getElementById('megaAutoPackBtn').addEventListener('click', () => { megaState.tiles = sortMegaTilesLeftward(megaState.tiles); saveStates(); renderMega(); });
-
-renderMini();
 renderMega();
