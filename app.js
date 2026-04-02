@@ -8,132 +8,23 @@ let state = {
   selected: []
 };
 
-/* ---------- DATA (clean + no duplicates) ---------- */
+/* ---------- CURATED DATA ---------- */
 
-const POOLS = [
+const DATA = [
+  // pasta
   ["spaghetti","penne","rigatoni","fusilli","farfalle","linguine","fettuccine","ravioli","tortellini","gnocchi","ziti","macaroni","cavatappi","rotini","bucatini","orecchiette","pappardelle","lasagna","tagliatelle","vermicelli","angel hair","ditalini","manicotti","capellini","gemelli","mafaldine","radiatori","campanelle","strozzapreti","paccheri","anelletti","bigoli","casarecce","trofie","malloreddus","lumache","fregola","mezzi rigatoni","spaghettini","cellentani","tubetti","sedani","filini","orzo","cannelloni"],
+
+  // spices
   ["basil","oregano","thyme","rosemary","cumin","turmeric","paprika","cinnamon","nutmeg","clove","cardamom","parsley","dill","sage","tarragon","sumac","za'atar","bay leaf","fennel","anise","chives","mint","marjoram","caraway","coriander","ginger","allspice","saffron","vanilla","sesame","mustard seed","celery seed","fenugreek","star anise","lemongrass","chili powder","cayenne","garlic powder","onion powder","smoked paprika","herbes de provence","lovage","savory","asafoetida","nigella"],
-  ["France","Germany","Italy","Spain","Portugal","Netherlands","Belgium","Sweden","Norway","Denmark","Finland","Poland","Austria","Greece","Ireland","Iceland","Romania","Hungary","Croatia","Serbia","Slovakia","Slovenia","Estonia","Latvia","Lithuania","Switzerland","Ukraine","Albania","Andorra","Belarus","Bosnia","Bulgaria","Cyprus","Czech Republic","Luxembourg","Malta","Moldova","Montenegro","North Macedonia","San Marino","Kosovo","Liechtenstein","Monaco","Turkey","Vatican City"]
-];
 
-/* ---------- INIT ---------- */
+  // flowers
+  ["rose","tulip","daisy","lily","orchid","sunflower","daffodil","peony","lavender","marigold","hibiscus","iris","poppy","gardenia","chrysanthemum","camellia","magnolia","zinnia","cosmos","petunia","snapdragon","delphinium","hydrangea","ranunculus","anemone","gladiolus","phlox","aster","begonia","bluebell","buttercup","carnation","columbine","foxglove","geranium","heather","hollyhock","jasmine","lotus","morning glory","nasturtium","primrose","salvia","verbena","wisteria"],
 
-generateBoard();
-render();
+  // countries
+  ["France","Germany","Italy","Spain","Portugal","Netherlands","Belgium","Sweden","Norway","Denmark","Finland","Poland","Austria","Greece","Ireland","Iceland","Romania","Hungary","Croatia","Serbia","Slovakia","Slovenia","Estonia","Latvia","Lithuania","Switzerland","Ukraine","Albania","Andorra","Belarus","Bosnia","Bulgaria","Cyprus","Czech Republic","Luxembourg","Malta","Moldova","Montenegro","North Macedonia","San Marino","Kosovo","Liechtenstein","Monaco","Turkey","Vatican City"],
 
-/* ---------- BOARD ---------- */
+  // US states
+  ["alabama","alaska","arizona","arkansas","california","colorado","connecticut","delaware","florida","georgia","hawaii","idaho","illinois","indiana","iowa","kansas","kentucky","louisiana","maine","maryland","massachusetts","michigan","minnesota","mississippi","missouri","montana","nebraska","nevada","new hampshire","new jersey","new mexico","new york","north carolina","north dakota","ohio","oklahoma","oregon","pennsylvania","rhode island","south carolina","south dakota","tennessee","texas","utah","vermont"],
 
-function generateBoard() {
-  let tiles = [];
-
-  for (let g = 0; g < BOARD_SIZE; g++) {
-    const pool = POOLS[g % POOLS.length];
-
-    for (let i = 0; i < GROUP_SIZE; i++) {
-      const item = pool[i % pool.length] + " " + g; // guarantees uniqueness
-
-      tiles.push({
-        id: crypto.randomUUID(),
-        text: item,
-        group: g,
-        items: [item],
-        locked: false
-      });
-    }
-  }
-
-  state.tiles = shuffle(tiles);
-}
-
-/* ---------- INTERACTION ---------- */
-
-function handleClick(id) {
-  const idx = state.tiles.findIndex(t => t.id === id);
-  if (idx === -1) return;
-
-  const tile = state.tiles[idx];
-  if (tile.locked) return;
-
-  if (state.selected.length === 0) {
-    state.selected = [idx];
-    render();
-    return;
-  }
-
-  const firstIdx = state.selected[0];
-  const firstTile = state.tiles[firstIdx];
-
-  if (firstTile.group !== tile.group) {
-    render([firstTile.id, tile.id]); // shake
-    state.selected = [];
-    return;
-  }
-
-  merge(firstIdx, idx);
-  state.selected = [];
-  render();
-}
-
-function merge(i1, i2) {
-  const t1 = state.tiles[i1];
-  const t2 = state.tiles[i2];
-
-  const merged = [...new Set([...t1.items, ...t2.items])];
-
-  state.tiles[i2] = {
-    ...t2,
-    items: merged,
-    text: formatPreview(merged),
-    locked: merged.length === GROUP_SIZE
-  };
-
-  state.tiles.splice(i1, 1);
-}
-
-function formatPreview(items) {
-  if (items.length <= 2) return items.join(", ");
-  return `${items[0]}, ${items[1]}, ... [${items.length}]`;
-}
-
-/* ---------- RENDER ---------- */
-
-function render(shakeIds = []) {
-  const board = document.querySelector(".board");
-  if (!board) return;
-
-  board.innerHTML = "";
-
-  state.tiles.forEach((tile, i) => {
-    const div = document.createElement("div");
-    div.className = "tile";
-
-    if (state.selected.includes(i)) div.classList.add("selected");
-    if (shakeIds.includes(tile.id)) div.classList.add("shake");
-
-    div.textContent = tile.text;
-
-    if (tile.items.length > 2) {
-      div.classList.add("hoverable");
-
-      const hover = document.createElement("div");
-      hover.className = "hover-content";
-      hover.textContent = tile.items.join(", ");
-      div.appendChild(hover);
-    }
-
-    div.onclick = () => handleClick(tile.id);
-    board.appendChild(div);
-  });
-}
-
-/* ---------- UTIL ---------- */
-
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-});
+  // office items
+  ["printer","stapler","notebook","pen","pencil","monitor","keyboard","mouse","desk","chair","whiteboard","calendar","folder","binder","paper clips","tape","scissors","highlighter","envelope","sticky notes","scanner","phone","lamp","filing cabinet","push pins","rubber bands","clipboard","hole punch","label maker","shredder","desk pad","mail tray","eraser","ruler","extension cord","surge protector","dry erase marker","bulletin board","ink cartridge
