@@ -178,18 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.tiles.splice(i1, 1);
 
-    const keptIndex = i1 < i2 ? i2 - 1 : i2;
-    const keptTile = state.tiles[keptIndex];
-
-    if (keptTile && keptTile.locked) {
-      moveSolvedGroupToTop(keptTile.group);
-    }
-  }
-
-  function moveSolvedGroupToTop(group) {
-    const solved = state.tiles.filter((tile) => tile.group === group);
-    const others = state.tiles.filter((tile) => tile.group !== group);
-    state.tiles = [...solved, ...others];
   }
 
   function shuffleOpenTiles() {
@@ -256,7 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el.textContent = tile.text;
       el.addEventListener("click", () => handleTileClick(tile.id));
 
-      if (tile.items.length > 2 && !tile.locked) {
+      if (tile.items.length > 2) {
         el.classList.add("hoverable");
         const hover = document.createElement("div");
         hover.className = "hover-content";
