@@ -1,5 +1,6 @@
+
 document.addEventListener("DOMContentLoaded", () => {
-  const EXPECTED_GROUPS = 45;
+  const GROUP_COUNT = 45;
   const GROUP_SIZE = 45;
   const SHAKE_MS = 320;
 
@@ -8,23 +9,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const shuffleBtn = document.getElementById("shuffleBtn");
   const deselectBtn = document.getElementById("deselectBtn");
 
-  const CATEGORY_BANK = Array.isArray(window.CATEGORY_BANK) ? window.CATEGORY_BANK : [];
-  const weekInfo = getWeekInfo();
-  const STORAGE_KEY = `connections45:${weekInfo.key}`;
+  const CATEGORY_SETS = Array.isArray(window.CATEGORY_SETS) ? window.CATEGORY_SETS : [];
+  const periodInfo = getMonthlyInfo();
+  const STORAGE_KEY = `connections45:${periodInfo.key}`;
 
   let state;
 
   try {
-    validateCategoryBank(CATEGORY_BANK);
+    validateCategorySets(CATEGORY_SETS);
 
     state = loadState();
     if (!isValidState(state)) {
-      state = buildWeeklyState();
+      state = buildPeriodState();
       saveState();
     }
 
     wireControls();
-    maybeShowResetWarning();
     render();
   } catch (error) {
     renderFatal(error);
@@ -44,8 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function buildWeeklyState() {
-    const categories = CATEGORY_BANK.map((category, index) => ({
+  function buildPeriodState() {
+    const categories = getActiveCategorySet().map((category, index) => ({
       ...category,
       group: index
     }));
@@ -65,9 +65,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    const rng = seededRandom(hashString(`${weekInfo.key}:layout`));
+    const rng = seededRandom(hashString(`${periodInfo.key}:layout`));
     return {
-      weekKey: weekInfo.key,
+      periodKey: periodInfo.key,
       selected: [],
       mistakes: 0,
       score: 0,
@@ -75,38 +75,48 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function validateCategoryBank(bank) {
-    if (!Array.isArray(bank)) {
-      throw new Error("CATEGORY_BANK is missing.");
+  function getActiveCategorySet() {
+    const setIndex = periodInfo.rotationIndex % CATEGORY_SETS.length;
+    return CATEGORY_SETS[setIndex];
+  }
+
+  function validateCategorySets(sets) {
+    if (!Array.isArray(sets) || sets.length < 2) {
+      throw new Error("CATEGORY_SETS is missing.");
     }
 
-    if (bank.length !== EXPECTED_GROUPS) {
-      throw new Error(`Expected ${EXPECTED_GROUPS} categories but found ${bank.length}.`);
-    }
-
-    const seenItems = new Map();
-
-    bank.forEach((category, categoryIndex) => {
-      if (!category || typeof category.id !== "string" || typeof category.title !== "string" || !Array.isArray(category.items)) {
-        throw new Error(`Category ${categoryIndex + 1} is malformed.`);
+    sets.forEach((set, setIndex) => {
+      if (!Array.isArray(set)) {
+        throw new Error(`Category set ${setIndex + 1} is malformed.`);
+      }
+      if (set.length !== GROUP_COUNT) {
+        throw new Error(`Category set ${setIndex + 1} must contain ${GROUP_COUNT} categories.`);
       }
 
-      if (category.items.length !== GROUP_SIZE) {
-        throw new Error(`"${category.title}" does not have ${GROUP_SIZE} items.`);
-      }
+      const seenItems = new Map();
 
-      const local = new Set();
-      category.items.forEach((item) => {
-        const key = normalize(item);
-        if (local.has(key)) {
-          throw new Error(`"${category.title}" contains a duplicate item: ${item}`);
+      set.forEach((category, categoryIndex) => {
+        if (!category || typeof category.id !== "string" || typeof category.title !== "string" || !Array.isArray(category.items)) {
+          throw new Error(`Category ${categoryIndex + 1} in set ${setIndex + 1} is malformed.`);
         }
-        local.add(key);
 
-        if (seenItems.has(key)) {
-          throw new Error(`Duplicate item across categories: "${item}" appears in "${seenItems.get(key)}" and "${category.title}".`);
+        if (category.items.length !== GROUP_SIZE) {
+          throw new Error(`"${category.title}" does not have ${GROUP_SIZE} items.`);
         }
-        seenItems.set(key, category.title);
+
+        const local = new Set();
+        category.items.forEach((item) => {
+          const key = normalize(item);
+          if (local.has(key)) {
+            throw new Error(`"${category.title}" contains a duplicate item: ${item}`);
+          }
+          local.add(key);
+
+          if (seenItems.has(key)) {
+            throw new Error(`Duplicate item in set ${setIndex + 1}: "${item}" appears in "${seenItems.get(key)}" and "${category.title}".`);
+          }
+          seenItems.set(key, category.title);
+        });
       });
     });
   }
@@ -178,13 +188,12 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     state.tiles.splice(i1, 1);
-
   }
 
   function shuffleOpenTiles() {
     const locked = state.tiles.filter((tile) => tile.locked);
     const open = state.tiles.filter((tile) => !tile.locked);
-    const rng = seededRandom(hashString(`${weekInfo.key}:shuffle:${state.mistakes}:${state.score}:${open.length}`));
+    const rng = seededRandom(hashString(`${periodInfo.key}:shuffle:${state.mistakes}:${state.score}:${open.length}`));
     state.tiles = [...locked, ...shuffleArray(open, rng)];
     state.selected = [];
     saveState();
@@ -209,8 +218,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function render(shakeIds = []) {
     if (statusEl) {
       statusEl.innerHTML = [
-        `<span>Week ${weekInfo.week}, ${weekInfo.year}</span>`,
-        `<span>Resets ${formatResetDate(weekInfo.resetDate)}</span>`,
+        `<span>Puzzle ${periodInfo.number}, ${periodInfo.year}</span>`,
+        `<span>Resets ${formatDate(periodInfo.resetDate)}</span>`,
         `<span>Score ${state.score}</span>`,
         `<span>Mistakes ${state.mistakes}</span>`
       ].join("");
@@ -302,7 +311,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function isValidState(value) {
     return (
       value &&
-      value.weekKey === weekInfo.key &&
+      value.periodKey === periodInfo.key &&
       Array.isArray(value.tiles) &&
       Array.isArray(value.selected) &&
       typeof value.mistakes === "number" &&
@@ -321,64 +330,33 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  function getWeekInfo() {
+  function getMonthlyInfo() {
     const now = new Date();
-    const local = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const day = local.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    periodStart.setHours(0, 0, 0, 0);
 
-    const monday = new Date(local);
-    monday.setDate(local.getDate() + mondayOffset);
-    monday.setHours(0, 0, 0, 0);
+    const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    resetDate.setHours(0, 0, 0, 0);
 
-    const nextMonday = new Date(monday);
-    nextMonday.setDate(monday.getDate() + 7);
-    nextMonday.setHours(0, 0, 0, 0);
-
-    const yearStart = new Date(monday.getFullYear(), 0, 1);
-    const daysSinceYearStart = Math.floor((monday - yearStart) / 86400000);
-    const week = Math.floor(daysSinceYearStart / 7) + 1;
+    const monthIndex = periodStart.getMonth();
 
     return {
-      year: monday.getFullYear(),
-      week,
-      key: `${monday.getFullYear()}-W${String(week).padStart(2, "0")}`,
-      resetDate: nextMonday
+      year: periodStart.getFullYear(),
+      number: monthIndex + 1,
+      rotationIndex: (periodStart.getFullYear() * 12) + monthIndex,
+      key: `${periodStart.getFullYear()}-M${String(monthIndex + 1).padStart(2, "0")}`,
+      startDate: periodStart,
+      resetDate
     };
   }
 
-  function formatResetDate(date) {
+  function formatDate(date) {
     return date.toLocaleDateString("en-CA", {
       weekday: "short",
       month: "short",
       day: "numeric",
       year: "numeric"
     });
-  }
-
-  function isOneDayBeforeReset(resetDate) {
-    const now = new Date();
-    const warningDay = new Date(resetDate);
-    warningDay.setDate(warningDay.getDate() - 1);
-
-    return (
-      now.getFullYear() === warningDay.getFullYear() &&
-      now.getMonth() === warningDay.getMonth() &&
-      now.getDate() === warningDay.getDate()
-    );
-  }
-
-  function maybeShowResetWarning() {
-    const warningKey = `connections45-reset-warning:${weekInfo.key}`;
-
-    if (!isOneDayBeforeReset(weekInfo.resetDate)) return;
-    if (localStorage.getItem(warningKey) === "shown") return;
-
-    window.alert(`This puzzle resets tomorrow: ${formatResetDate(weekInfo.resetDate)}.`);
-
-    try {
-      localStorage.setItem(warningKey, "shown");
-    } catch (_) {}
   }
 
   function hashString(str) {
