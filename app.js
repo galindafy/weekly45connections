@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const picked = [];
     const used = new Set();
 
-    fillFromPool(featured, 28, `${periodInfo.key}:featured`, picked, used);
+    fillFromPool(featured, GROUP_COUNT, `${periodInfo.key}:featured`, picked, used);
     fillFromPool(expansion, 45, `${periodInfo.key}:expansion`, picked, used);
     if (picked.length < GROUP_COUNT) fillFromPool(CATEGORY_BANK, GROUP_COUNT, `${periodInfo.key}:fallback`, picked, used);
     if (picked.length < GROUP_COUNT) throw new Error(`Only found ${picked.length} duplicate-free categories for this month.`);
@@ -89,7 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function validateCategoryBank(bank) {
     if (!Array.isArray(bank) || bank.length < GROUP_COUNT) throw new Error("CATEGORY_BANK is missing.");
-    const global = new Map();
     bank.forEach((category, categoryIndex) => {
       if (!category || typeof category.id !== "string" || typeof category.title !== "string" || !Array.isArray(category.items)) {
         throw new Error(`Category ${categoryIndex + 1} is malformed.`);
@@ -99,9 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       category.items.forEach((item) => {
         const key = normalize(item);
         if (local.has(key)) throw new Error(`"${category.title}" contains a duplicate item: ${item}`);
-        if (global.has(key)) throw new Error(`Global duplicate item: ${item}`);
         local.add(key);
-        global.set(key, category.id);
       });
     });
   }
