@@ -99,11 +99,9 @@ document.addEventListener("DOMContentLoaded", () => {
       category.items.forEach((item) => {
         const key = normalize(item);
         if (local.has(key)) throw new Error(`"${category.title}" contains a duplicate item: ${item}`);
+        if (global.has(key)) throw new Error(`Global duplicate item: ${item}`);
         local.add(key);
-        if (global.has(key)) {
-          throw new Error(`Global overlap detected: "${item}" appears in both "${global.get(key)}" and "${category.title}".`);
-        }
-        global.set(key, category.title);
+        global.set(key, category.id);
       });
     });
   }
